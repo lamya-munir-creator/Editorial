@@ -1,6 +1,7 @@
 <?php
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\Comment;
 use Illuminate\Http\Request;
 
@@ -29,25 +30,26 @@ class CommentController extends Controller
     }
 
     // 3. إضافة تعليق جديد
-    public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'article_id' => 'required|exists:articles,id',
-            'body'       => 'required|string|max:1000',
-        ]);
+public function store(Request $request)
+{
+    $validatedData = $request->validate([
+        'article_id' => 'required|exists:articles,id',
+        'user_id'    => 'nullable|exists:users,id',
+        'content'    => 'required|string|max:1000',
+    ]);
 
-        $comment = Comment::create([
-            'article_id' => $validatedData['article_id'],
-            'user_id'    => auth()->id(), // أو $request->user()->id
-            'body'       => $validatedData['body'],
-        ]);
+    $comment = Comment::create([
+        'article_id' => $validatedData['article_id'],
+        'user_id'    => $validatedData['user_id'] ?? auth()->id(),
+        'content'    => $validatedData['content'],
+    ]);
 
-        return response()->json([
-            'status'  => true,
-            'message' => 'تم إضافة تعليقك بنجاح',
-            'data'    => $comment
-        ], 201);
-    }
+    return response()->json([
+        'status'  => true,
+        'message' => 'تم إضافة التعليق بنجاح',
+        'data'    => $comment
+    ], 201);
+}
 
     // 4. حذف تعليق
     public function destroy($id)

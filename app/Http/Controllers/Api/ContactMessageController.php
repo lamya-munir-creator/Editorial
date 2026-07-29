@@ -1,50 +1,60 @@
 <?php
-namespace App\Http\Controllers;
 
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
- // لاستخدام خدمة البريد الإلكتروني
 
 class ContactMessageController extends Controller
 {
-    // جلب رسائل اتصل بنا (في لوحة التحكم)
+    // 1. جلب جميع الرسائل
     public function index()
     {
         $messages = ContactMessage::latest()->paginate(15);
         
-        return view('admin.contacts.index', compact('messages'));
+        return response()->json([
+            'status' => true,
+            'data'   => $messages
+        ], 200);
     }
 
-    // عرض رسالة محددة بالتفصيل
+    // 2. عرض رسالة محددة
     public function show($id)
     {
         $message = ContactMessage::findOrFail($id);
         
-        // تغيير حالة الرسالة إلى "مقروءة" عند فتحها لأول مرة
         if (!$message->is_read) {
             $message->update(['is_read' => true]);
         }
 
-        return view('admin.contacts.show', compact('message'));
+        return response()->json([
+            'status' => true,
+            'data'   => $message
+        ], 200);
     }
 
-    // استقبال رسالة جديدة من قِبل زائر الموقع
-    public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
-            'subject' => 'nullable|string|max:255',
-            'message' => 'required|string|max:2000',
-        ]);
+    // 3. استقبال رسالة جديدة
+public function store(Request $request)
+{
+    $validatedData = $request->validate([
+        'full_name' => 'required|string|max:255', // تم التعديل من name إلى full_name
+        'email'     => 'required|email|max:255',
+        'subject'   => 'nullable|string|max:255',
+        'message'   => 'required|string|max:2000',
+    ]);
 
-        ContactMessage::create($validatedData);
+    $message = ContactMessage::create($validatedData);
 
-        return back()->with('success', 'تم إرسال رسالتك بنجاح، شكراً لتواصلك معنا.');
-    }
+    return response()->json([
+        'status'  => true,
+        'message' => 'تم إرسال رسالتك بنجاح، شكراً لتواصلك معنا.',
+        'data'    => $message
+    ], 201);
+}
 
-    // [إضافة جديدة] الرد على رسالة الزائر وإرسالها عبر البريد
+    // 4. الرد على الرسالة عبر البريد
     public function reply(Request $request, $id)
     {
         $message = ContactMessage::findOrFail($id);
@@ -53,26 +63,30 @@ class ContactMessageController extends Controller
             'reply_message' => 'required|string|max:3000',
         ]);
 
-        // إرسال البريد الإلكتروني للزائر
         Mail::raw($validatedData['reply_message'], function ($mail) use ($message) {
             $mail->to($message->email)
                  ->subject('رد على استفسارك: ' . ($message->subject ?? 'إدارة الموقع'));
         });
 
-        // تحديث حالة الرسالة في قاعدة البيانات لتصبح "تم الرد" (تأكد من وجود عمود is_replied أو status في جدولك)
         $message->update([
             'is_replied' => true,
         ]);
 
-        return back()->with('success', 'تم إرسال الرد بنجاح إلى البريد الإلكتروني للزائر.');
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم إرسال الرد بنجاح إلى البريد الإلكتروني للزائر.'
+        ], 200);
     }
 
-    // حذف رسالة
+    // 5. حذف رسالة
     public function destroy($id)
     {
         $message = ContactMessage::findOrFail($id);
         $message->delete();
 
-        return redirect()->route('contacts.index')->with('success', 'تم حذف الرسالة بنجاح');
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم حذف الرسالة بنجاح'
+        ], 200);
     }
 }

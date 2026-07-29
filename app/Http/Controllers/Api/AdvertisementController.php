@@ -1,55 +1,122 @@
 <?php
-namespace App\Http\Controllers;
 
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
 use App\Models\Advertisement;
 use Illuminate\Http\Request;
 
 class AdvertisementController extends Controller
 {
-    // جلب جميع الإعلانات
+    /**
+     * جلب جميع الإعلانات
+     */
     public function index()
     {
         $advertisements = Advertisement::latest()->paginate(10);
-        
-        return view('admin.advertisements.index', compact('advertisements'));
+
+        return response()->json([
+            'status' => true,
+            'data'   => $advertisements
+        ], 200);
     }
 
-    // عرض إعلان معين
+    /**
+     * عرض تفاصيل إعلان معين
+     */
     public function show($id)
     {
         $advertisement = Advertisement::findOrFail($id);
-        
-        return view('admin.advertisements.show', compact('advertisement'));
+
+        return response()->json([
+            'status' => true,
+            'data'   => $advertisement
+        ], 200);
     }
 
-    // إضافة إعلان جديد
+    /**
+     * إضافة إعلان جديد
+     */
     public function store(Request $request)
     {
         $validatedData = $request->validate([
-            'title' => 'required|string|max:255',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'link' => 'nullable|url',
-            'status' => 'required|boolean',
+            'title'           => 'required|string|max:255',
+            'destination_url' => 'nullable|string',
+            'link'            => 'nullable|string', 
+            'position'        => 'nullable|string',
+            'status'          => 'required|in:active,inactive',
+            'start_date'      => 'nullable|date',
+            'end_date'        => 'nullable|date|after_or_equal:start_date',
+            'image_id'        => 'nullable|integer',
+            'display_order'   => 'nullable|integer',
+            'is_internal'     => 'nullable|boolean',
         ]);
 
-        // رفع الصورة ومعالجتها
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('ads', 'public');
-            $validatedData['image'] = $imagePath;
-        }
+        // ضبط اسم الرابط ليتوافق مع العمود في DB
+        $validatedData['destination_url'] = $request->input('destination_url') ?? $request->input('link');
+        unset($validatedData['link']);
 
-        Advertisement::create($validatedData);
+        // قيم تلقائية للحقول المطلوبة في الجدول
+        $validatedData['uuid']       = \Illuminate\Support\Str::uuid();
+        $validatedData['image_id']   = $request->input('image_id', 1);
+        $validatedData['created_by'] = auth()->id() ?? 1;
 
-        return redirect()->route('advertisements.index')->with('success', 'تم إضافـة الإعلان بنجاح');
+        $advertisement = Advertisement::create($validatedData);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم إضافة الإعلان بنجاح',
+            'data'    => $advertisement
+        ], 201);
     }
 
-    // حذف إعلان
+    /**
+     * تحديث إعلان
+     */
+    public function update(Request $request, $id)
+    {
+        $advertisement = Advertisement::findOrFail($id);
+
+        $validatedData = $request->validate([
+            'title'           => 'sometimes|required|string|max:255',
+            'destination_url' => 'nullable|string',
+            'link'            => 'nullable|string',
+            'position'        => 'nullable|string',
+            'status'          => 'sometimes|required|in:active,inactive',
+            'start_date'      => 'nullable|date',
+            'end_date'        => 'nullable|date|after_or_equal:start_date',
+            'image_id'        => 'nullable|integer',
+            'display_order'   => 'nullable|integer',
+            'is_internal'     => 'nullable|boolean',
+        ]);
+
+        if ($request->has('destination_url') || $request->has('link')) {
+            $validatedData['destination_url'] = $request->input('destination_url') ?? $request->input('link');
+            unset($validatedData['link']);
+        }
+
+        $validatedData['updated_by'] = auth()->id() ?? 1;
+
+        $advertisement->update($validatedData);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم تحديث الإعلان بنجاح',
+            'data'    => $advertisement
+        ], 200);
+    }
+
+    /**
+     * حذف إعلان
+     */
     public function destroy($id)
     {
         $advertisement = Advertisement::findOrFail($id);
-        // يمكن هنا حذف ملف الصورة من التخزين إذا أردت
         $advertisement->delete();
 
-        return redirect()->route('advertisements.index')->with('success', 'تم حذف الإعلان بنجاح');
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم حذف الإعلان بنجاح'
+        ], 200);
     }
 }
