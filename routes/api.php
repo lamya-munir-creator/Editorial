@@ -11,7 +11,9 @@ use App\Http\Controllers\Api\AdvertisementController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\NewsletterSubscriberController;
 use App\Http\Controllers\Api\PageController;
+use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MenuController;
+use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\SettingController;
 
 // 1. مسار يجلب بيانات المستخدم الحالي عند تسجيل الدخول
@@ -41,6 +43,9 @@ Route::apiResource('advertisements', AdvertisementController::class);
 Route::apiResource('contact-messages', ContactMessageController::class);
 Route::post('contact-messages/{id}/reply', [ContactMessageController::class, 'reply']);
 Route::apiResource('newsletter-subscribers', NewsletterSubscriberController::class);
+Route::patch('newsletter-subscribers/{id}/unsubscribe', [NewsletterSubscriberController::class, 'unsubscribe']);
 Route::apiResource('pages', PageController::class);
+Route::apiResource('media', MediaController::class);
 Route::apiResource('menus', MenuController::class);
+Route::apiResource('menu-items', MenuItemController::class);
 Route::apiResource('settings', SettingController::class);

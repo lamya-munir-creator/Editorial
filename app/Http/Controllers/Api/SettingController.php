@@ -4,113 +4,109 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use App\Http\Requests\StoreSettingRequest;
+use App\Http\Requests\UpdateSettingRequest;
+use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
 {
     /**
-     * عرض جميع الإعدادات.
+     * 1. عرض جميع الإعدادات (أو تجميعها حسب المجموعات)
      */
     public function index()
     {
-        $settings = Setting::with('updater')
-            ->latest()
-            ->paginate(10);
+        $settings = Setting::latest()->get();
 
         return response()->json([
             'status' => true,
-            'data' => $settings,
+            'data'   => $settings
         ], 200);
     }
 
     /**
-     * إنشاء إعداد جديد.
+     * 2. عرض إعداد واحد
      */
-    public function store(Request $request)
+    public function show($id)
     {
-        $validated = $request->validate([
-            'setting_key' => [
-                'required',
-                'string',
-                'max:150',
-                'unique:settings,setting_key',
-            ],
-            'setting_value' => 'nullable|string',
-            'group_name' => 'required|string|max:100',
-            'value_type' => 'nullable|string|max:50',
-            'is_public' => 'sometimes|boolean',
-        ]);
-
-        $validated['value_type'] =
-            $validated['value_type'] ?? 'string';
-
-        $validated['is_public'] =
-            $validated['is_public'] ?? false;
-
-        $validated['updated_by'] = auth()->id() ?? 1;
-
-        $setting = Setting::create($validated);
+        $setting = Setting::findOrFail($id);
 
         return response()->json([
             'status' => true,
-            'message' => 'تم إنشاء الإعداد بنجاح',
-            'data' => $setting,
+            'data'   => $setting
+        ], 200);
+    }
+
+    /**
+     * 3. إضافة إعداد جديد (مع دعم رفع الملفات/الصور)
+     */
+    public function store(StoreSettingRequest $request)
+    {
+        $validatedData = $request->validated();
+
+        // التعامل مع رفع الملف/الصورة إن وجد
+        if ($request->hasFile('setting_value')) {
+            $path = $request->file('setting_value')->store('settings', 'public');
+            $validatedData['setting_value'] = $path;
+        }
+
+        $validatedData['is_public']  = $validatedData['is_public'] ?? false;
+        $validatedData['updated_by'] = auth()->id() ?? 1;
+
+        $setting = Setting::create($validatedData);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم إنشاء الإعداد بنجاح.',
+            'data'    => $setting
         ], 201);
     }
 
     /**
-     * عرض إعداد واحد.
+     * 4. تعديل إعداد (مع تبديل الملف القديم بالجديد إن وُجد)
      */
-    public function show(Setting $setting)
+    public function update(UpdateSettingRequest $request, $id)
     {
+        $setting = Setting::findOrFail($id);
+        $validatedData = $request->validated();
+
+        // التعامل مع رفع الملف الجديد وتفريغ القديم
+        if ($request->hasFile('setting_value')) {
+            if ($setting->setting_value && Storage::disk('public')->exists($setting->setting_value)) {
+                Storage::disk('public')->delete($setting->setting_value);
+            }
+
+            $path = $request->file('setting_value')->store('settings', 'public');
+            $validatedData['setting_value'] = $path;
+        }
+
+        $validatedData['updated_by'] = auth()->id() ?? 1;
+
+        $setting->update($validatedData);
+
         return response()->json([
-            'status' => true,
-            'data' => $setting->load('updater'),
+            'status'  => true,
+            'message' => 'تم تحديث الإعداد بنجاح.',
+            'data'    => $setting
         ], 200);
     }
 
     /**
-     * تحديث إعداد.
+     * 5. حذف إعداد مع ملفه المرفق
      */
-    public function update(Request $request, Setting $setting)
+    public function destroy($id)
     {
-        $validated = $request->validate([
-            'setting_key' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:150',
-                Rule::unique('settings', 'setting_key')
-                    ->ignore($setting->id),
-            ],
-            'setting_value' => 'sometimes|nullable|string',
-            'group_name' => 'sometimes|required|string|max:100',
-            'value_type' => 'sometimes|required|string|max:50',
-            'is_public' => 'sometimes|boolean',
-        ]);
+        $setting = Setting::findOrFail($id);
 
-        $validated['updated_by'] = auth()->id() ?? 1;
+        // حذف الملف المرفق إن كان مخزناً
+        if ($setting->setting_value && Storage::disk('public')->exists($setting->setting_value)) {
+            Storage::disk('public')->delete($setting->setting_value);
+        }
 
-        $setting->update($validated);
-
-        return response()->json([
-            'status' => true,
-            'message' => 'تم تحديث الإعداد بنجاح',
-            'data' => $setting->fresh()->load('updater'),
-        ], 200);
-    }
-
-    /**
-     * حذف إعداد.
-     */
-    public function destroy(Setting $setting)
-    {
         $setting->delete();
 
         return response()->json([
-            'status' => true,
-            'message' => 'تم حذف الإعداد بنجاح',
+            'status'  => true,
+            'message' => 'تم حذف الإعداد بنجاح.'
         ], 200);
     }
 }

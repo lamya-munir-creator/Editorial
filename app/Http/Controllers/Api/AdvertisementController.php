@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Advertisement;
-use Illuminate\Http\Request;
+use App\Models\Media; // في حال كان لديكِ موديل للميديا
+use App\Http\Requests\StoreAdvertisementRequest;
+use App\Http\Requests\UpdateAdvertisementRequest;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class AdvertisementController extends Controller
 {
     /**
-     * جلب جميع الإعلانات
+     * عرض جميع الإعلانات
      */
     public function index()
     {
-        $advertisements = Advertisement::latest()->paginate(10);
+        $advertisements = Advertisement::with('image')->latest()->get();
 
         return response()->json([
             'status' => true,
@@ -22,87 +27,82 @@ class AdvertisementController extends Controller
     }
 
     /**
-     * عرض تفاصيل إعلان معين
+     * عرض إعلان محدد
      */
     public function show($id)
     {
-        $advertisement = Advertisement::findOrFail($id);
+        $ad = Advertisement::with('image')->findOrFail($id);
 
         return response()->json([
             'status' => true,
-            'data'   => $advertisement
+            'data'   => $ad
         ], 200);
     }
 
     /**
-     * إضافة إعلان جديد
+     * إنشاء إعلان جديد
      */
-    public function store(Request $request)
+    public function store(StoreAdvertisementRequest $request)
     {
-        $validatedData = $request->validate([
-            'title'           => 'required|string|max:255',
-            'destination_url' => 'nullable|string',
-            'link'            => 'nullable|string', 
-            'position'        => 'nullable|string',
-            'status'          => 'required|in:active,inactive',
-            'start_date'      => 'nullable|date',
-            'end_date'        => 'nullable|date|after_or_equal:start_date',
-            'image_id'        => 'nullable|integer',
-            'display_order'   => 'nullable|integer',
-            'is_internal'     => 'nullable|boolean',
-        ]);
+        $data = $request->validated();
 
-        // ضبط اسم الرابط ليتوافق مع العمود في DB
-        $validatedData['destination_url'] = $request->input('destination_url') ?? $request->input('link');
-        unset($validatedData['link']);
+        // 1. توليد الـ UUID إجبارياً للجدول
+        $data['uuid'] = (string) Str::uuid();
 
-        // قيم تلقائية للحقول المطلوبة في الجدول
-        $validatedData['uuid']       = \Illuminate\Support\Str::uuid();
-        $validatedData['image_id']   = $request->input('image_id', 1);
-        $validatedData['created_by'] = auth()->id() ?? 1;
+        // 2. تعيين منشئ الإعلان
+        $data['created_by'] = Auth::id() ?? 1;
 
-        $advertisement = Advertisement::create($validatedData);
+        // 3. معالجة رفع الصورة إذا تم إرسال ملف صورة
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('advertisements', 'public');
+
+            // إذا يوجد جدول ميديا مستقل، نقوم بإنشاء سجل فيه أوالحفظ المباشر
+            if (class_exists(Media::class)) {
+                $media = Media::create([
+                    'file_path' => $path,
+                    'file_name' => $request->file('image')->getClientOriginalName(),
+                ]);
+                $data['image_id'] = $media->id;
+            }
+        }
+
+        $ad = Advertisement::create($data);
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم إضافة الإعلان بنجاح',
-            'data'    => $advertisement
+            'message' => 'تم حفظ الإعلان بنجاح.',
+            'data'    => $ad->load('image')
         ], 201);
     }
 
     /**
      * تحديث إعلان
      */
-    public function update(Request $request, $id)
+    public function update(UpdateAdvertisementRequest $request, $id)
     {
-        $advertisement = Advertisement::findOrFail($id);
+        $ad = Advertisement::findOrFail($id);
+        $data = $request->validated();
 
-        $validatedData = $request->validate([
-            'title'           => 'sometimes|required|string|max:255',
-            'destination_url' => 'nullable|string',
-            'link'            => 'nullable|string',
-            'position'        => 'nullable|string',
-            'status'          => 'sometimes|required|in:active,inactive',
-            'start_date'      => 'nullable|date',
-            'end_date'        => 'nullable|date|after_or_equal:start_date',
-            'image_id'        => 'nullable|integer',
-            'display_order'   => 'nullable|integer',
-            'is_internal'     => 'nullable|boolean',
-        ]);
+        $data['updated_by'] = Auth::id() ?? 1;
 
-        if ($request->has('destination_url') || $request->has('link')) {
-            $validatedData['destination_url'] = $request->input('destination_url') ?? $request->input('link');
-            unset($validatedData['link']);
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('advertisements', 'public');
+
+            if (class_exists(Media::class)) {
+                $media = Media::create([
+                    'file_path' => $path,
+                    'file_name' => $request->file('image')->getClientOriginalName(),
+                ]);
+                $data['image_id'] = $media->id;
+            }
         }
 
-        $validatedData['updated_by'] = auth()->id() ?? 1;
-
-        $advertisement->update($validatedData);
+        $ad->update($data);
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم تحديث الإعلان بنجاح',
-            'data'    => $advertisement
+            'message' => 'تم تحديث الإعلان بنجاح.',
+            'data'    => $ad->load('image')
         ], 200);
     }
 
@@ -111,12 +111,12 @@ class AdvertisementController extends Controller
      */
     public function destroy($id)
     {
-        $advertisement = Advertisement::findOrFail($id);
-        $advertisement->delete();
+        $ad = Advertisement::findOrFail($id);
+        $ad->delete();
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف الإعلان بنجاح'
+            'message' => 'تم حذف الإعلان بنجاح.'
         ], 200);
     }
 }
