@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Models\Media;
 use Illuminate\Http\Request;
 use App\Http\Resources\ArticleResource;
+use App\Http\Requests\StoreArticleRequest;
+use App\Http\Requests\UpdateArticleRequest;
 use Illuminate\Support\Str;
 
 class ArticleController extends Controller
@@ -64,28 +67,45 @@ class ArticleController extends Controller
         ], 200);
     }
 
-    public function store(Request $request)
+    /**
+     * إنشاء وحفظ مقال جديد مع التحقق عبر StoreArticleRequest ومعالجة رفع صورة الغلاف.
+     */
+    public function store(StoreArticleRequest $request)
     {
-        $validated = $request->validate([
-            'title'             => 'required|string|max:255',
-            'content'           => 'required|string',
-            'excerpt'           => 'nullable|string',
-            'category_id'       => 'required|exists:categories,id',
-            'featured_image_id' => 'nullable|exists:media,id',
-            'meta_title'        => 'nullable|string|max:255',
-            'meta_description'  => 'nullable|string|max:500',
-            'reading_time'      => 'nullable|integer',
-            'is_featured'       => 'nullable|boolean',
-            'allow_comments'    => 'nullable|boolean',
-            'status'            => 'required|in:draft,published,archived',
-            'tags'              => 'nullable|array',
-            'tags.*'            => 'exists:tags,id',
-        ]);
+        // استقبال البيانات بعد التحقق الآلي في StoreArticleRequest
+        $validated = $request->validated();
 
-        $validated['author_id'] = auth()->id() ?? 1;
+        $validated['author_id']  = auth()->id() ?? 1;
         $validated['created_by'] = auth()->id() ?? 1;
-        $validated['slug'] = Str::slug($request->title);
+        $validated['slug']       = Str::slug($request->title);
         $validated['published_at'] = ($validated['status'] === 'published') ? now() : null;
+
+        // =========================================================================
+        // إضافة جديدة: معالجة رفع صورة الغلاف تلقائياً إن أرسلت كملف (image file)
+        // =========================================================================
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $path = $file->store('articles', 'public');
+            
+            // إنشاء سجل في جدول الميديا وربطه بالمقال
+            $media = Media::create([
+                'uuid'          => (string) Str::uuid(),
+                'uploaded_by'   => auth()->id() ?? 1,
+                'file_name'     => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk'          => 'public',
+                'path'          => $path,
+                'webp_path'     => $path,
+                'mime_type'     => $file->getClientMimeType(),
+                'extension'     => $file->getClientOriginalExtension(),
+                'file_size'     => $file->getSize(),
+                'type'          => 'image',
+                'visibility'    => 'public',
+                'created_by'    => auth()->id() ?? 1,
+            ]);
+
+            $validated['featured_image_id'] = $media->id;
+        }
 
         $article = Article::create($validated);
 
@@ -111,29 +131,45 @@ class ArticleController extends Controller
         ], 200);
     }
 
-    public function update(Request $request, Article $article)
+    /**
+     * تحديث مقال مع التحقق عبر UpdateArticleRequest ومعالجة تحديث صورة الغلاف.
+     */
+    public function update(UpdateArticleRequest $request, Article $article)
     {
-        $validated = $request->validate([
-            'title'             => 'sometimes|required|string|max:255',
-            'content'           => 'sometimes|required|string',
-            'excerpt'           => 'sometimes|nullable|string',
-            'category_id'       => 'sometimes|required|exists:categories,id',
-            'featured_image_id' => 'sometimes|nullable|exists:media,id',
-            'meta_title'        => 'sometimes|nullable|string|max:255',
-            'meta_description'  => 'sometimes|nullable|string|max:500',
-            'reading_time'      => 'sometimes|nullable|integer',
-            'is_featured'       => 'sometimes|nullable|boolean',
-            'allow_comments'    => 'sometimes|nullable|boolean',
-            'status'            => 'sometimes|required|in:draft,published,archived',
-            'tags'              => 'nullable|array',
-            'tags.*'            => 'exists:tags,id',
-        ]);
+        // استقبال البيانات بعد التحقق من UpdateArticleRequest
+        $validated = $request->validated();
 
         if (isset($validated['title'])) {
             $validated['slug'] = Str::slug($validated['title']);
         }
 
         $validated['updated_by'] = auth()->id() ?? 1;
+
+        // =========================================================================
+        // إضافة جديدة: معالجة تحديث أو رفع صورة غلاف جديدة إن أرسلت كملف (image)
+        // =========================================================================
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $path = $file->store('articles', 'public');
+
+            $media = Media::create([
+                'uuid'          => (string) Str::uuid(),
+                'uploaded_by'   => auth()->id() ?? 1,
+                'file_name'     => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk'          => 'public',
+                'path'          => $path,
+                'webp_path'     => $path,
+                'mime_type'     => $file->getClientMimeType(),
+                'extension'     => $file->getClientOriginalExtension(),
+                'file_size'     => $file->getSize(),
+                'type'          => 'image',
+                'visibility'    => 'public',
+                'created_by'    => auth()->id() ?? 1,
+            ]);
+
+            $validated['featured_image_id'] = $media->id;
+        }
 
         $article->update($validated);
 
