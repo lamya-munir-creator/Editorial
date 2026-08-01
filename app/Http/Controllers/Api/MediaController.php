@@ -21,6 +21,7 @@ class MediaController extends Controller
         // إضافة رابط الملف المباشر url لكل عنصر
         $media->getCollection()->transform(function ($item) {
             $item->file_url = asset('storage/' . $item->path);
+            $item->webp_url = $item->webp_path ? asset('storage/' . $item->webp_path) : $item->file_url;
             return $item;
         });
 
@@ -31,7 +32,7 @@ class MediaController extends Controller
     }
 
     /**
-     * رفع ملف جديد وحفظ كافه بياناته في جدول media
+     * رفع ملف جديد وحفظ كافه بياناته في جدول media مع تحسين WebP
      */
     public function store(StoreMediaRequest $request)
     {
@@ -50,8 +51,9 @@ class MediaController extends Controller
 
         // 2. رفع الملف إلى مجلد storage/app/public/media
         $path = $file->store('media', 'public');
+        $webpPath = $path; // افتراضي
 
-        // 3. قراءة أبعاد الصورة إن كان الملف صورة
+        // 3. قراءة أبعاد الصورة وتحسين صيغة WebP للصور
         $width = null;
         $height = null;
         if ($type === 'image') {
@@ -60,9 +62,29 @@ class MediaController extends Controller
                 $width  = $imageSize[0];
                 $height = $imageSize[1];
             }
+
+            // إذا أمكن إنشاء نسخة WebP باستخدام GD Library
+            if (function_exists('imagecreatefromstring') && function_exists('imagewebp')) {
+                try {
+                    $contents = file_get_contents($file->getRealPath());
+                    $img = @imagecreatefromstring($contents);
+                    if ($img !== false) {
+                        $webpFileName = 'media/' . pathinfo($path, PATHINFO_FILENAME) . '.webp';
+                        $fullPath = storage_path('app/public/' . $webpFileName);
+                        @imagewebp($img, $fullPath, 80);
+                        @imagedestroy($img);
+                        if (file_exists($fullPath)) {
+                            $webpPath = $webpFileName;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // في حال التعذر استخدام المسار الأصلي
+                    $webpPath = $path;
+                }
+            }
         }
 
-        // 4. إنشاء السجل في جدول media بجميع الحقول المطابقة لجدولك
+        // 4. إنشاء السجل في جدول media
         $media = Media::create([
             'uuid'          => (string) Str::uuid(),
             'uploaded_by'   => Auth::id() ?? 1,
@@ -70,6 +92,7 @@ class MediaController extends Controller
             'original_name' => $file->getClientOriginalName(),
             'disk'          => 'public',
             'path'          => $path,
+            'webp_path'     => $webpPath,
             'mime_type'     => $mime,
             'extension'     => $file->getClientOriginalExtension(),
             'file_size'     => $file->getSize(),
@@ -83,10 +106,11 @@ class MediaController extends Controller
         ]);
 
         $media->file_url = asset('storage/' . $media->path);
+        $media->webp_url = asset('storage/' . $media->webp_path);
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم رفع الملف بنجاح.',
+            'message' => 'تم رفع الملف بنجاح وتحسين الصيغة.',
             'data'    => $media
         ], 201);
     }
@@ -100,6 +124,10 @@ class MediaController extends Controller
 
         if ($media->path && Storage::disk('public')->exists($media->path)) {
             Storage::disk('public')->delete($media->path);
+        }
+
+        if ($media->webp_path && $media->webp_path !== $media->path && Storage::disk('public')->exists($media->webp_path)) {
+            Storage::disk('public')->delete($media->webp_path);
         }
 
         $media->delete();
