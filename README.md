@@ -1,58 +1,191 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 📰 Editorial CMS API - نظام إدارة المحتوى والمجلة الرقمية المتكاملة
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![Laravel Framework](https://img.shields.io/badge/Laravel-12.x-FF2D20?style=for-the-badge&logo=laravel)](https://laravel.com)
+[![PHP Version](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php)](https://php.net)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Google AdSense Ready](https://img.shields.io/badge/Google_AdSense-Ready-4285F4?style=for-the-badge&logo=googleads)](https://adsense.google.com)
+[![SEO Optimized](https://img.shields.io/badge/SEO-Optimized-00C7B7?style=for-the-badge)](https://schema.org)
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📌 نظرة عامة على المشروع (Overview)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+مشروع **Editorial CMS API** هو نظام خلفية (Backend RESTful API) احترافي متكامل لإدارة الصحف، والمجلات الرقمية، ومواقع المقالات الإخبارية. تم تطويره باستخدام إطار العمل **Laravel 12** و **PHP 8.3** ليوفر منصة عالية الأداء وسريعة التحميل وقابلة للتوسع والتكامل مع أي واجهة أمامية (Next.js, Vue.js, React, Vanilla JS / Quick Frontend) أو تطبيقات الهواتف المحمولة.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+تم تصميم النظام ليكون **مطابقاً ومؤهلاً 100% لمعايير القبول المباشر في برنامج Google AdSense** واستيفاء متطلبات محركات البحث (SEO Best Practices).
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## ✨ المميزات والخصائص الرئيسية (Key Features)
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- 📰 **إدارة كاملة للمقالات (Article Management):** لدعم حالات النشر (مسودة، منشور، مؤرشف)، تحديد المقالات المميزة، التوزيع الزمني للنشر (`published_at`)، وحساب وقت القراءة التلقائي.
+- 🗂️ **تصنيفات ووسوم هرمية (Categories & Tags):** دعم الأقسام الرئيسية والفرعية مع الأيقونات والرتيب والـ Slugs الصديقة لمحركات البحث.
+- ✍️ **إدارة الكُتّاب والصحفيين (Author Profiles):** ملفات تعريفية شاملة للكُتّاب تشمل السيرة الذاتية، الصورة الشخصية، ووسائل التواصل الاجتماعي.
+- 💰 **إدارة المساحات الإعلانية (AdSense & Ads Management):** دعم شامل لمواقع الإعلانات (Header, Sidebar, In-Article, Footer) وأكواد AdSense وتتبع النقرات والانطباعات.
+- 🔍 **محرك بحث وفلترة متطور:** فلترة المقالات بالكلمات المفتاحية (`?q=`)، و Slugs الأقسام، والكُتّاب، والوسوم، وطلب المقالات ذات الصلة (`Related Articles`).
+- 🌐 **خريطة موقع ديناميكية (`Sitemap.xml`):** توليد تلقائي لخريطة XML خفيفة وسريعة لجميع المقالات، الأقسام، الصفحات، والكُتّاب لتقديمها في Google Search Console.
+- 📊 **دعم البيانات المنظمة (`Schema.org / JSON-LD`):** إدراج هيكلية `NewsArticle` تلقائياً في استجابات المقالات للظهور في نتائج جوجل الغنية (Rich Snippets) وأخبار جوجل.
+- 🖼️ **تحسين وحفظ الصور بصيغة `WebP`:** تحويل تلقائي للصور المرفوعة لصيغة خفيفة جداً لتسريع زمن التحميل ورفع تقييم Google PageSpeed.
+- ✉️ **نظام التواصل والنشرة البريدية:** استقبال رسائل الزوار والرد البريدي المباشر، وإدارة المشتركين مع خيار إلغاء الاشتراك بنقرة واحدة.
+- 🔒 **مصادقة وحماية متقدمة:** استخدام **Laravel Sanctum** واستخدام الـ UUIDs لعدم كشف معرفات قاعدة البيانات مباشرة.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## 🛠️ التقنيات ومتطلبات التشغيل (Tech Stack & Requirements)
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+### التقنيات المستخدمة:
+- **Language:** PHP 8.3+
+- **Framework:** Laravel 12.x
+- **Authentication:** Laravel Sanctum
+- **Database:** SQLite / MySQL / MariaDB
+- **SEO & Markup:** Schema.org (JSON-LD), Dynamic XML Sitemap
 
+### المتطلبات المسبقة (Prerequisites):
+- PHP >= 8.3 مع التمديدات التالية: (`pdo`, `mbstring`, `openssl`, `tokenizer`, `xml`, `gd`)
+- Composer >= 2.x
+- Node.js >= 18.x & NPM
+- MySQL أو SQLite
+
+---
+
+## 🚀 خطوات التثبيت والتشغيل المحلي (Installation & Setup)
+
+اتبع الخطوات التالية لتشغيل المشروع في بيئة التطوير المحلية:
+
+### 1. استنساخ المشروع (Clone Repository)
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone https://github.com/lamya-munir-creator/Editorial.git
+cd Editorial
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. تثبيت الاعتماديات (Install Dependencies)
+```bash
+composer install
+npm install
+```
 
-## Contributing
+### 3. إعداد ملف البيئة (Environment Configuration)
+قم بإنشاء نسخة من ملف البيئة وتوليد مفتاح التطبيق:
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+قم بضبط إعدادات قاعدة البيانات في ملف `.env`:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=editorial
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-## Code of Conduct
+### 4. تشغيل الترحيلات وتغذية البيانات (Migrations & Seeders)
+قم بتشغيل الترحيلات وإنشاء الجداول وتغذية إعدادات أدوات جوجل:
+```bash
+php artisan migrate --force
+php artisan db:seed --class=SettingSeeder
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 5. إنشاء رابط مجلد التخزين للوسائط (Storage Link)
+```bash
+php artisan storage:link
+```
 
-## Security Vulnerabilities
+### 6. تشغيل سيرفر التطوير (Run Development Server)
+```bash
+php artisan serve
+```
+سيكون التطبيق متاحاً على الرابط: `http://127.0.0.1:8000`
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 📂 هيكلية قاعدة البيانات والنماذج (Database Models)
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+يحتوي النظام على **15 نموذجاً رئيساً (Eloquent Models)**:
+
+1. **`Article`:** إدارة المقالات (العنوان، Slug، المحتوى، الوقت المتوقع للقراءة، SEO Meta، حالة النشر، المشاهدات).
+2. **`Category`:** إدارة الأقسام والتصنيفات الهرمية.
+3. **`Tag`:** إدارة الوسوم.
+4. **`Author`:** ملفات الكُتّاب والصحفيين وصورهم وروابطهم.
+5. **`Comment`:** تعليقات القراء والردود الهرمية وحالات المراجعة (`pending`, `approved`).
+6. **`Page`:** الصفحات الثابتة (عن الموقع، الخصوصية، الشروط، والصفحة الرئيسية `is_homepage`).
+7. **`Advertisement`:** نظام المساحات الإعلانية وأكواد Google AdSense.
+8. **`ContactMessage`:** رسائل التواصل وإمكانية الرد البريدي.
+9. **`NewsletterSubscriber`:** مشتركو النشرة الإخبارية وتوكينات إلغاء الاشتراك.
+10. **`Media`:** مركز إدارة الملفات والصور ونشر صيغة `WebP`.
+11. **`Menu` & `MenuItem`:** القوائم التفاعلية للهيدر والفوتر.
+12. **`Setting`:** الإعدادات الديناميكية للموقع وأكواد تتبع جوجل.
+13. **`User` & `Role`:** المستخدمين والأدوار والتراخيص.
+
+---
+
+## 🌐 دليل نقاط النهاية للـ API (API Endpoints Documentation)
+
+جميع نقاط النهاية تبدأ بالبادئة `/api`:
+
+### 📰 1. المقالات (Articles)
+- `GET /api/articles` - جلب المقالات مع دعم الفلترة والبحث (`?q=كلمة_البحث`, `?category_slug=...`, `?author_slug=...`, `?tag_slug=...`, `?featured=1`).
+- `POST /api/articles` - إضافة مقال جديد.
+- `GET /api/articles/{id}` - عرض تفاصيل المقال مع الـ Schema Markup وزيادة عدد المشاهدات تلقائياً.
+- `PUT/PATCH /api/articles/{id}` - تحديث بيانات المقال والوسوم.
+- `DELETE /api/articles/{id}` - حذف المقال مرناً (Soft Delete).
+- `GET /api/articles/{id}/related` - جلب المقالات ذات الصلة بنفس التصنيف أو الوسوم.
+
+### 🗂️ 2. الأقسام (Categories)
+- `GET /api/categories` - عرض كافة الأقسام النشطة.
+- `POST /api/categories` - إنشاء قسم جديد.
+- `GET /api/categories/slug/{slug}` - جلب تفاصيل القسم ومقالاته المنشورة بواسطة الـ Slug.
+- `PUT/PATCH /api/categories/{id}` - تحديث قسم.
+- `DELETE /api/categories/{id}` - حذف قسم.
+
+### ✍️ 3. الكُتّاب (Authors)
+- `GET /api/authors` - جلب قائمة الكُتّاب مع البحث وعدد مقالات كل كاتب.
+- `GET /api/authors/slug/{slug}` - جلب تفاصيل الكاتب ومقالاته المنشورة بواسطة الـ Slug.
+- `POST /api/authors` - إضافة كاتب جديد.
+- `PUT/PATCH /api/authors/{id}` - تحديث بيانات الكاتب.
+
+### 📄 4. الصفحات والإعلانات (Pages & Advertisements)
+- `GET /api/pages/homepage` - جلب بيانات الصفحة الرئيسية المنشورة.
+- `GET /api/pages/slug/{slug}` - جلب الصفحة عن طريق الـ Slug.
+- `GET /api/advertisements` - جلب المساحات الإعلانية المفعّلة وصورها/أكوادها.
+- `POST /api/advertisements` - إضافة مساحة إعلانية جديدة.
+
+### 🗺️ 5. خريطة الموقع والـ SEO (Sitemap & SEO)
+- `GET /sitemap.xml` أو `GET /api/sitemap.xml` - خريطة الموقع الديناميكية بنمط XML لتوجيه محركات البحث.
+
+### 📩 6. التواصل والنشرة البريدية (Contact & Newsletter)
+- `POST /api/contact-messages` - إرسال رسالة تواصل من الزائر.
+- `POST /api/contact-messages/{id}/reply` - إرسال رد بريدي مخصص للزائر وتغيير حالة الرسالة إلى `replied`.
+- `POST /api/newsletter-subscribers` - الاشتراك في النشرة البريدية.
+- `POST /api/newsletter-subscribers/unsubscribe` - إلغاء الاشتراك.
+
+---
+
+## 📈 الربط والتكامل مع خدمات Google (Google Integration)
+
+تستطيع إدارة مفاتيح الربط مع خدمات جوجل مباشرة عبر لوحة التحكم أو جدول `settings`:
+
+1. **Google Search Console:**
+   - رابط خريطة الموقع الجاهز للارتباط هو: `https://your-domain.com/sitemap.xml`
+2. **Google Analytics (GA4):**
+   - حفظ المعرف الخاص بك في المفتاح `google_analytics_id` (مثل: `G-XXXXXXXXXX`).
+3. **Google AdSense:**
+   - حفظ معرف الناشر في المفتاح `google_adsense_client_id` (مثل: `ca-pub-XXXXXXXXXXXXXXXX`).
+   - تفعيل الإعلانات التلقائية عبر المفتاح `google_adsense_auto_ads`.
+
+---
+
+## 🧪 التشغيل والاختبار الآلي (Testing)
+
+لتشغيل مجموعة الاختبارات الآلية التأكد من سلامة النظام:
+```bash
+php artisan test
+```
+
+---
+
+## 📄 الترخيص (License)
+
+هذا المشروع مرخص تحت رخصة **[MIT License](LICENSE)**.
