@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Author;
+use App\Models\Article;
+use App\Http\Resources\ArticleResource;
 use Illuminate\Http\Request;
 
 class AuthorController extends Controller
@@ -15,34 +17,84 @@ class AuthorController extends Controller
     {
         $search = $request->input('search');
 
-        $authors = Author::with('avatar') // تحميل الصورة الشخصية
-            ->withCount('articles')        // عدد المقالات التابعة لكل كاتب
+        $authors = Author::with('avatar')
+            ->withCount('articles')
             ->when($search, function ($query, $search) {
-                return $query->where('name', 'like', "%{$search}%")
+                return $query->where('display_name', 'like', "%{$search}%")
+                             ->orWhere('name', 'like', "%{$search}%")
                              ->orWhere('email', 'like', "%{$search}%");
             })
             ->latest()
             ->paginate(10);
 
         return response()->json([
-            'status' => true,
+            'status'  => true,
             'message' => 'تم جلب قائمة الكُتّاب بنجاح',
-            'data'   => $authors
+            'data'    => $authors
         ], 200);
     }
 
     /**
-     * عرض تفاصيل كاتب معين مع مقالاته وصورته
+     * عرض تفاصيل كاتب معين مع مقالاته وصورته عبر المعرف
      */
     public function show($id)
     {
-        $author = Author::with(['avatar', 'articles.featuredImage'])
+        $author = Author::with(['avatar'])
             ->withCount('articles')
             ->findOrFail($id);
 
+        $articles = Article::published()
+            ->where('author_id', $author->id)
+            ->with(['category', 'tags', 'featuredImage'])
+            ->latest('published_at')
+            ->paginate(10);
+
         return response()->json([
-            'status' => true,
-            'data'   => $author
+            'status'   => true,
+            'author'   => $author,
+            'articles' => ArticleResource::collection($articles),
+            'meta'     => [
+                'current_page' => $articles->currentPage(),
+                'last_page'    => $articles->lastPage(),
+                'per_page'     => $articles->perPage(),
+                'total'        => $articles->total(),
+            ]
+        ], 200);
+    }
+
+    /**
+     * عرض تفاصيل الكاتب ومقالاته بواسطة الـ Slug
+     */
+    public function showBySlug(string $slug)
+    {
+        $author = Author::with(['avatar'])
+            ->withCount('articles')
+            ->where('slug', $slug)
+            ->first();
+
+        if (!$author) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'الكاتب غير موجود'
+            ], 404);
+        }
+
+        $articles = Article::published()
+            ->where('author_id', $author->id)
+            ->with(['category', 'tags', 'featuredImage'])
+            ->latest('published_at')
+            ->paginate(10);
+
+        return response()->json([
+            'status'   => true,
+            'author'   => $author,
+            'articles' => ArticleResource::collection($articles),
+            'meta'     => [
+                'current_page' => $articles->currentPage(),
+                'last_page'    => $articles->lastPage(),
+                'per_page'     => $articles->perPage(),
+                'total'        => $articles->total(),
+            ]
         ], 200);
     }
 
@@ -59,11 +111,8 @@ class AuthorController extends Controller
             'created_by'   => 'nullable|exists:users,id',
         ]);
 
-        // توليد الـ uuid والـ slug تلقائياً
         $validatedData['uuid'] = \Illuminate\Support\Str::uuid();
         $validatedData['slug'] = \Illuminate\Support\Str::slug($validatedData['display_name']) . '-' . \Illuminate\Support\Str::random(6);
-        
-        // إسناد معرف المستخدم الذي أنشأ السجل (إذا كان مسجلاً، أو 1 كافتراضي للتجربة)
         $validatedData['created_by'] = auth()->id() ?? $request->input('created_by', 1);
 
         $author = Author::create($validatedData);
