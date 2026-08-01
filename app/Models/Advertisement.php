@@ -11,9 +11,9 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'uuid',
-    'image_id',
     'title',
     'destination_url',
+    'image_id',
     'position',
     'display_order',
     'start_date',

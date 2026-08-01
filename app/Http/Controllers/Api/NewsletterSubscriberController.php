@@ -4,140 +4,111 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewsletterSubscriber;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreNewsletterSubscriberRequest;
+use App\Http\Requests\UpdateNewsletterSubscriberRequest;
 use Illuminate\Support\Str;
 
 class NewsletterSubscriberController extends Controller
 {
     /**
-     * عرض جميع المشتركين.
+     * 1. عرض جميع المشتركين
      */
     public function index()
     {
-        $subscribers = NewsletterSubscriber::latest()
-            ->paginate(10);
+        $subscribers = NewsletterSubscriber::latest()->paginate(15);
 
         return response()->json([
             'status' => true,
-            'data' => $subscribers->items(),
-            'meta' => [
-                'current_page' => $subscribers->currentPage(),
-                'last_page' => $subscribers->lastPage(),
-                'total' => $subscribers->total(),
-            ],
+            'data'   => $subscribers
         ], 200);
     }
 
     /**
-     * إضافة مشترك جديد.
+     * 2. عرض تفاصيل مشترك واحد
      */
-    public function store(Request $request)
+    public function show($id)
     {
-        $validated = $request->validate([
-            'email' => 'required|email|max:255|unique:newsletter_subscribers,email',
-            'full_name' => 'nullable|string|max:150',
-        ]);
-
-        $subscriber = NewsletterSubscriber::create([
-            'uuid' => Str::uuid(),
-            'email' => $validated['email'],
-            'full_name' => $validated['full_name'] ?? null,
-            'is_active' => true,
-            'subscribed_at' => now(),
-            'unsubscribed_at' => null,
-        ]);
+        $subscriber = NewsletterSubscriber::findOrFail($id);
 
         return response()->json([
             'status' => true,
-            'message' => 'تم الاشتراك في النشرة البريدية بنجاح',
-            'data' => $subscriber,
+            'data'   => $subscriber
+        ], 200);
+    }
+
+    /**
+     * 3. إضافة مشترك جديد (من الواجهة)
+     */
+    public function store(StoreNewsletterSubscriberRequest $request)
+    {
+        $validatedData = $request->validated();
+
+        $validatedData['uuid']          = (string) Str::uuid();
+        $validatedData['subscribed_at'] = now();
+        $validatedData['is_active']     = $validatedData['is_active'] ?? true;
+
+        $subscriber = NewsletterSubscriber::create($validatedData);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم الاشتراك في النشرة البريدية بنجاح.',
+            'data'    => $subscriber
         ], 201);
     }
 
     /**
-     * عرض مشترك واحد.
+     * 4. تعديل بيانات مشترك (من لوحة التحكم)
      */
-    public function show(NewsletterSubscriber $newsletterSubscriber)
+    public function update(UpdateNewsletterSubscriberRequest $request, $id)
     {
-        return response()->json([
-            'status' => true,
-            'data' => $newsletterSubscriber,
-        ], 200);
-    }
+        $subscriber = NewsletterSubscriber::findOrFail($id);
+        $validatedData = $request->validated();
 
-    /**
-     * تحديث بيانات المشترك.
-     */
-    public function update(
-        Request $request,
-        NewsletterSubscriber $newsletterSubscriber
-    ) {
-        $validated = $request->validate([
-            'email' => 'sometimes|required|email|max:255|unique:newsletter_subscribers,email,'
-                . $newsletterSubscriber->id,
-            'full_name' => 'nullable|string|max:150',
-            'is_active' => 'sometimes|boolean',
-        ]);
-
-        if (
-            array_key_exists('is_active', $validated)
-            && $validated['is_active'] === false
-        ) {
-            $validated['unsubscribed_at'] = now();
+        // في حال تم تعطيل الحساب نحدث تاريخ إلغاء الاشتراك تلقائياً
+        if (array_key_exists('is_active', $validatedData) && !$validatedData['is_active']) {
+            $validatedData['unsubscribed_at'] = now();
+        } elseif (array_key_exists('is_active', $validatedData) && $validatedData['is_active']) {
+            $validatedData['unsubscribed_at'] = null;
         }
 
-        if (
-            array_key_exists('is_active', $validated)
-            && $validated['is_active'] === true
-        ) {
-            $validated['subscribed_at'] = now();
-            $validated['unsubscribed_at'] = null;
-        }
-
-        $newsletterSubscriber->update($validated);
+        $subscriber->update($validatedData);
 
         return response()->json([
-            'status' => true,
-            'message' => 'تم تحديث بيانات المشترك بنجاح',
-            'data' => $newsletterSubscriber->fresh(),
+            'status'  => true,
+            'message' => 'تم تحديث بيانات المشترك بنجاح.',
+            'data'    => $subscriber
         ], 200);
     }
 
     /**
-     * حذف المشترك.
+     * 5. إلغاء الاشتراك السريع
      */
-    public function destroy(NewsletterSubscriber $newsletterSubscriber)
+    public function unsubscribe($id)
     {
-        $newsletterSubscriber->delete();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'تم حذف المشترك بنجاح',
-        ], 200);
-    }
-
-    /**
-     * إلغاء الاشتراك عن طريق البريد.
-     */
-    public function unsubscribe(Request $request)
-    {
-        $validated = $request->validate([
-            'email' => 'required|email|exists:newsletter_subscribers,email',
-        ]);
-
-        $subscriber = NewsletterSubscriber::where(
-            'email',
-            $validated['email']
-        )->firstOrFail();
+        $subscriber = NewsletterSubscriber::findOrFail($id);
 
         $subscriber->update([
-            'is_active' => false,
+            'is_active'       => false,
             'unsubscribed_at' => now(),
         ]);
 
         return response()->json([
-            'status' => true,
-            'message' => 'تم إلغاء الاشتراك بنجاح',
+            'status'  => true,
+            'message' => 'تم إلغاء الاشتراك بنجاح.'
+        ], 200);
+    }
+
+    /**
+     * 6. حذف مشترك نهائياً
+     */
+    public function destroy($id)
+    {
+        $subscriber = NewsletterSubscriber::findOrFail($id);
+        $subscriber->delete();
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم حذف المشترك بنجاح'
         ], 200);
     }
 }

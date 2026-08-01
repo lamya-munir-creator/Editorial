@@ -1,55 +1,122 @@
 <?php
-namespace App\Http\Controllers;
 
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
 use App\Models\Advertisement;
-use Illuminate\Http\Request;
+use App\Models\Media; // في حال كان لديكِ موديل للميديا
+use App\Http\Requests\StoreAdvertisementRequest;
+use App\Http\Requests\UpdateAdvertisementRequest;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class AdvertisementController extends Controller
 {
-    // جلب جميع الإعلانات
+    /**
+     * عرض جميع الإعلانات
+     */
     public function index()
     {
-        $advertisements = Advertisement::latest()->paginate(10);
-        
-        return view('admin.advertisements.index', compact('advertisements'));
+        $advertisements = Advertisement::with('image')->latest()->get();
+
+        return response()->json([
+            'status' => true,
+            'data'   => $advertisements
+        ], 200);
     }
 
-    // عرض إعلان معين
+    /**
+     * عرض إعلان محدد
+     */
     public function show($id)
     {
-        $advertisement = Advertisement::findOrFail($id);
-        
-        return view('admin.advertisements.show', compact('advertisement'));
+        $ad = Advertisement::with('image')->findOrFail($id);
+
+        return response()->json([
+            'status' => true,
+            'data'   => $ad
+        ], 200);
     }
 
-    // إضافة إعلان جديد
-    public function store(Request $request)
+    /**
+     * إنشاء إعلان جديد
+     */
+    public function store(StoreAdvertisementRequest $request)
     {
-        $validatedData = $request->validate([
-            'title' => 'required|string|max:255',
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'link' => 'nullable|url',
-            'status' => 'required|boolean',
-        ]);
+        $data = $request->validated();
 
-        // رفع الصورة ومعالجتها
+        // 1. توليد الـ UUID إجبارياً للجدول
+        $data['uuid'] = (string) Str::uuid();
+
+        // 2. تعيين منشئ الإعلان
+        $data['created_by'] = Auth::id() ?? 1;
+
+        // 3. معالجة رفع الصورة إذا تم إرسال ملف صورة
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('ads', 'public');
-            $validatedData['image'] = $imagePath;
+            $path = $request->file('image')->store('advertisements', 'public');
+
+            // إذا يوجد جدول ميديا مستقل، نقوم بإنشاء سجل فيه أوالحفظ المباشر
+            if (class_exists(Media::class)) {
+                $media = Media::create([
+                    'file_path' => $path,
+                    'file_name' => $request->file('image')->getClientOriginalName(),
+                ]);
+                $data['image_id'] = $media->id;
+            }
         }
 
-        Advertisement::create($validatedData);
+        $ad = Advertisement::create($data);
 
-        return redirect()->route('advertisements.index')->with('success', 'تم إضافـة الإعلان بنجاح');
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم حفظ الإعلان بنجاح.',
+            'data'    => $ad->load('image')
+        ], 201);
     }
 
-    // حذف إعلان
+    /**
+     * تحديث إعلان
+     */
+    public function update(UpdateAdvertisementRequest $request, $id)
+    {
+        $ad = Advertisement::findOrFail($id);
+        $data = $request->validated();
+
+        $data['updated_by'] = Auth::id() ?? 1;
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('advertisements', 'public');
+
+            if (class_exists(Media::class)) {
+                $media = Media::create([
+                    'file_path' => $path,
+                    'file_name' => $request->file('image')->getClientOriginalName(),
+                ]);
+                $data['image_id'] = $media->id;
+            }
+        }
+
+        $ad->update($data);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم تحديث الإعلان بنجاح.',
+            'data'    => $ad->load('image')
+        ], 200);
+    }
+
+    /**
+     * حذف إعلان
+     */
     public function destroy($id)
     {
-        $advertisement = Advertisement::findOrFail($id);
-        // يمكن هنا حذف ملف الصورة من التخزين إذا أردت
-        $advertisement->delete();
+        $ad = Advertisement::findOrFail($id);
+        $ad->delete();
 
-        return redirect()->route('advertisements.index')->with('success', 'تم حذف الإعلان بنجاح');
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم حذف الإعلان بنجاح.'
+        ], 200);
     }
 }
