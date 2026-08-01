@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\SettingController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\RoleController;
 
 // 1. مسار يجلب بيانات المستخدم الحالي عند تسجيل الدخول
 Route::get('/user', function (Request $request) {
@@ -49,3 +51,6 @@ Route::apiResource('media', MediaController::class);
 Route::apiResource('menus', MenuController::class);
 Route::apiResource('menu-items', MenuItemController::class);
 Route::apiResource('settings', SettingController::class);
+Route::apiResource('users', UserController::class);
+Route::apiResource('roles', RoleController::class);
+

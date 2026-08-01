@@ -1,10 +1,16 @@
 <?php
 
-namespace App\Http\Controllers\Api; 
+namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreAuthorRequest;
+use App\Http\Requests\UpdateAuthorRequest;
 use App\Models\Author;
+use App\Models\Media;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
 
 class AuthorController extends Controller
 {
@@ -49,55 +55,127 @@ class AuthorController extends Controller
     /**
      * إضافة كاتب جديد
      */
-    public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'display_name' => 'required|string|max:255',
-            'biography'    => 'nullable|string',
-            'job_title'    => 'nullable|string|max:255',
-            'status'       => 'nullable|in:active,inactive',
-            'created_by'   => 'nullable|exists:users,id',
-        ]);
+    public function store(StoreAuthorRequest $request)
+{
+    $validatedData = $request->validated();
 
-        // توليد الـ uuid والـ slug تلقائياً
-        $validatedData['uuid'] = \Illuminate\Support\Str::uuid();
-        $validatedData['slug'] = \Illuminate\Support\Str::slug($validatedData['display_name']) . '-' . \Illuminate\Support\Str::random(6);
-        
-        // إسناد معرف المستخدم الذي أنشأ السجل (إذا كان مسجلاً، أو 1 كافتراضي للتجربة)
-        $validatedData['created_by'] = auth()->id() ?? $request->input('created_by', 1);
+    $author = DB::transaction(function () use ($request, $validatedData) {
+        $userId = auth()->id() ?? 1;
 
-        $author = Author::create($validatedData);
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
 
-        return response()->json([
-            'status'  => true,
-            'message' => 'تم إضافة الكاتِب بنجاح',
-            'data'    => $author
-        ], 201);
-    }
+            $path = $file->store('authors', 'public');
+
+            $media = Media::create([
+                'uuid' => Str::uuid(),
+                'uploaded_by' => $userId,
+                'file_name' => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk' => 'public',
+                'path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'extension' => $file->getClientOriginalExtension(),
+                'file_size' => $file->getSize(),
+                'width' => null,
+                'height' => null,
+                'duration' => null,
+                'alt_text' => $validatedData['display_name'],
+                'caption' => null,
+                'type' => 'image',
+                'visibility' => 'public',
+                'created_by' => $userId,
+                'updated_by' => null,
+            ]);
+
+            $validatedData['avatar_id'] = $media->id;
+        }
+
+        unset($validatedData['avatar']);
+
+        $validatedData['uuid'] = Str::uuid();
+
+        $validatedData['slug'] =
+            Str::slug($validatedData['display_name'])
+            . '-'
+            . Str::random(6);
+
+        $validatedData['created_by'] = $userId;
+
+        return Author::create($validatedData);
+    });
+
+    return response()->json([
+        'status' => true,
+        'message' => 'تم إضافة الكاتب بنجاح',
+        'data' => $author->load('avatar'),
+    ], 201);
+}
 
     /**
      * تحديث بيانات كاتب
      */
-    public function update(Request $request, $id)
-    {
-        $author = Author::findOrFail($id);
+public function update(UpdateAuthorRequest $request, $id)
+{
+    $author = Author::findOrFail($id);
 
-        $validatedData = $request->validate([
-            'display_name' => 'sometimes|required|string|max:255',
-            'biography'    => 'nullable|string',
-            'job_title'    => 'nullable|string|max:255',
-            'status'       => 'nullable|in:active,inactive',
-        ]);
+    $validatedData = $request->validated();
+
+    $author = DB::transaction(function () use ($request, $validatedData, $author) {
+        $userId = auth()->id() ?? 1;
+
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+
+            $path = $file->store('authors', 'public');
+
+            $media = Media::create([
+                'uuid' => Str::uuid(),
+                'uploaded_by' => $userId,
+                'file_name' => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk' => 'public',
+                'path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'extension' => $file->getClientOriginalExtension(),
+                'file_size' => $file->getSize(),
+                'width' => null,
+                'height' => null,
+                'duration' => null,
+                'alt_text' => $validatedData['display_name']
+                    ?? $author->display_name,
+                'caption' => null,
+                'type' => 'image',
+                'visibility' => 'public',
+                'created_by' => $userId,
+                'updated_by' => null,
+            ]);
+
+            $validatedData['avatar_id'] = $media->id;
+        }
+
+        unset($validatedData['avatar']);
+
+        $validatedData['updated_by'] = $userId;
+
+        if (isset($validatedData['display_name'])) {
+            $validatedData['slug'] =
+                Str::slug($validatedData['display_name'])
+                . '-'
+                . Str::random(6);
+        }
 
         $author->update($validatedData);
 
-        return response()->json([
-            'status'  => true,
-            'message' => 'تم تحديث بيانات الكاتِب بنجاح',
-            'data'    => $author
-        ], 200);
-    }
+        return $author;
+    });
 
+    return response()->json([
+        'status' => true,
+        'message' => 'تم تحديث بيانات الكاتِب بنجاح',
+        'data' => $author->fresh()->load('avatar'),
+    ], 200);
+}
     /**
      * حذف كاتب
      */
