@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 use App\Http\Resources\TagResource;
+use App\Http\Requests\StoreTagRequest;
+use App\Http\Requests\UpdateTagRequest;
+use Illuminate\Support\Str;
 
 class TagController extends Controller
 {
@@ -24,15 +27,17 @@ class TagController extends Controller
         ], 200);
     }
 
-    public function store(Request $request)
+    /**
+     * إنشاء وسم جديد مع التحقق عبر StoreTagRequest (Validation Only).
+     */
+    public function store(StoreTagRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:tags,name',
-        ]);
+        // استقبال البيانات بعد التحقق عبر FormRequest
+        $validated = $request->validated();
 
         $tag = Tag::create([
-            'name' => $request->name,
-            'slug' => \Str::slug($request->name),
+            'name' => $validated['name'],
+            'slug' => Str::slug($validated['name']),
         ]);
 
         return response()->json([
@@ -50,15 +55,17 @@ class TagController extends Controller
         ], 200);
     }
 
-    public function update(Request $request, Tag $tag)
+    /**
+     * تحديث وسم موجود مع التحقق عبر UpdateTagRequest (Validation Only).
+     */
+    public function update(UpdateTagRequest $request, Tag $tag)
     {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:tags,name,' . $tag->id,
-        ]);
+        // استقبال البيانات بعد التحقق عبر FormRequest
+        $validated = $request->validated();
 
         $tag->update([
-            'name' => $request->name,
-            'slug' => \Str::slug($request->name),
+            'name' => $validated['name'],
+            'slug' => Str::slug($validated['name']),
         ]);
 
         return response()->json([
