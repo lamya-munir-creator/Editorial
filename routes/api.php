@@ -17,25 +17,29 @@ use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\SitemapController;
 
 // 1. مسار يجلب بيانات المستخدم الحالي عند تسجيل الدخول
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+// 2. خريطة الموقع Dynamic Sitemap XML
+Route::get('sitemap.xml', [SitemapController::class, 'index']);
+
+// 3. مسارات مخصصة بالـ Slug والخدمات الفرعية
+Route::get('articles/{article}/related', [ArticleController::class, 'related']);
+Route::get('categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
+Route::get('authors/slug/{slug}', [AuthorController::class, 'showBySlug']);
+Route::get('pages/homepage', [PageController::class, 'homepage']);
+Route::get('pages/slug/{slug}', [PageController::class, 'showBySlug']);
+
 Route::post(
     'newsletter-subscribers/unsubscribe',
     [NewsletterSubscriberController::class, 'unsubscribe']
 );
-Route::get('pages/homepage', [PageController::class, 'homepage']);
 
-Route::get(
-    'pages/slug/{slug}',
-    [PageController::class, 'showBySlug']
-);
-
-
-// 2. مسارات الـ API العامة (Public API Routes)
+// 4. مسارات الـ API العامة (Public API Resources)
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('tags', TagController::class);
 Route::apiResource('articles', ArticleController::class);
@@ -53,4 +57,3 @@ Route::apiResource('menu-items', MenuItemController::class);
 Route::apiResource('settings', SettingController::class);
 Route::apiResource('users', UserController::class);
 Route::apiResource('roles', RoleController::class);
-

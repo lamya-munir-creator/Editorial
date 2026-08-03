@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Article;
 use Illuminate\Http\Request;
 use App\Http\Resources\CategoryResource;
+use App\Http\Resources\ArticleResource;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryRequest;
 use Illuminate\Support\Str;
@@ -15,17 +17,11 @@ class CategoryController extends Controller
     // عرض كل التصنيفات باستخدام CategoryResource (GET /api/categories)
     public function index()
     {
-        $categories = Category::latest()->paginate(10);
+        $categories = Category::where('is_active', true)->latest()->paginate(10);
 
         return response()->json([
             'status' => true,
             'data'   => CategoryResource::collection($categories),
-            'links'  => [
-                'first' => $categories->url(1),
-                'last'  => $categories->url($categories->lastPage()),
-                'prev'  => $categories->previousPageUrl(),
-                'next'  => $categories->nextPageUrl(),
-            ],
             'meta'   => [
                 'current_page' => $categories->currentPage(),
                 'last_page'    => $categories->lastPage(),
@@ -36,22 +32,23 @@ class CategoryController extends Controller
     }
 
     // إضافة تصنيف جديد (POST /api/categories)
-public function store(StoreCategoryRequest $request)
-{
-    $validatedData = $request->validated();
+    public function store(StoreCategoryRequest $request)
+    {
+        $validatedData = $request->validated();
 
-    $validatedData['slug'] = Str::slug($validatedData['name']);
-    $validatedData['created_by'] = auth()->id() ?? 1;
+        $validatedData['slug'] = Str::slug($validatedData['name']);
+        $validatedData['created_by'] = auth()->id() ?? 1;
 
-    $category = Category::create($validatedData);
+        $category = Category::create($validatedData);
 
-    return response()->json([
-        'status'  => true,
-        'message' => 'تم إنشاء التصنيف بنجاح',
-        'data'    => new CategoryResource($category)
-    ], 201);
-}
-    // عرض تصنيف محدد باستخدام 
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم إنشاء التصنيف بنجاح',
+            'data'    => new CategoryResource($category)
+        ], 201);
+    }
+
+    // عرض تصنيف محدد عبر الـ Route Model Binding
     public function show(Category $category)
     {
         return response()->json([
@@ -60,25 +57,56 @@ public function store(StoreCategoryRequest $request)
         ], 200);
     }
 
-    // تحديث تصنيف (PUT/PATCH /api/categories/{id})public 
-public function update(UpdateCategoryRequest $request, Category $category)
-{
-    $validatedData = $request->validated();
+    // عرض تصنيف محدد بناءً على الـ Slug مع مقالاته المنشورة
+    public function showBySlug(string $slug)
+    {
+        $category = Category::where('slug', $slug)->first();
 
-    if (isset($validatedData['name'])) {
-        $validatedData['slug'] = Str::slug($validatedData['name']);
+        if (!$category) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'التصنيف غير موجود'
+            ], 404);
+        }
+
+        $articles = Article::published()
+            ->where('category_id', $category->id)
+            ->with(['tags', 'author', 'featuredImage'])
+            ->latest('published_at')
+            ->paginate(10);
+
+        return response()->json([
+            'status'   => true,
+            'category' => new CategoryResource($category),
+            'articles' => ArticleResource::collection($articles),
+            'meta'     => [
+                'current_page' => $articles->currentPage(),
+                'last_page'    => $articles->lastPage(),
+                'per_page'     => $articles->perPage(),
+                'total'        => $articles->total(),
+            ]
+        ], 200);
     }
 
-    $validatedData['updated_by'] = auth()->id() ?? 1;
+    // تحديث تصنيف (PUT/PATCH /api/categories/{id})
+    public function update(UpdateCategoryRequest $request, Category $category)
+    {
+        $validatedData = $request->validated();
 
-    $category->update($validatedData);
+        if (isset($validatedData['name'])) {
+            $validatedData['slug'] = Str::slug($validatedData['name']);
+        }
 
-    return response()->json([
-        'status'  => true,
-        'message' => 'تم تحديث التصنيف بنجاح',
-        'data'    => new CategoryResource($category)
-    ], 200);
-}
+        $validatedData['updated_by'] = auth()->id() ?? 1;
+
+        $category->update($validatedData);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم تحديث التصنيف بنجاح',
+            'data'    => new CategoryResource($category)
+        ], 200);
+    }
 
     // حذف تصنيف (DELETE /api/categories/{id})
     public function destroy(Category $category)
