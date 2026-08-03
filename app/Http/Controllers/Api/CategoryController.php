@@ -8,6 +8,9 @@ use App\Models\Article;
 use Illuminate\Http\Request;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ArticleResource;
+use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
+use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
@@ -29,13 +32,14 @@ class CategoryController extends Controller
     }
 
     // إضافة تصنيف جديد (POST /api/categories)
-    public function store(Request $request)
+    public function store(StoreCategoryRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:categories,name',
-        ]);
+        $validatedData = $request->validated();
 
-        $category = Category::create($request->all());
+        $validatedData['slug'] = Str::slug($validatedData['name']);
+        $validatedData['created_by'] = auth()->id() ?? 1;
+
+        $category = Category::create($validatedData);
 
         return response()->json([
             'status'  => true,
@@ -44,7 +48,7 @@ class CategoryController extends Controller
         ], 201);
     }
 
-    // عرض تصنيف محدد باستخدام CategoryResource (GET /api/categories/{id})
+    // عرض تصنيف محدد عبر الـ Route Model Binding
     public function show(Category $category)
     {
         return response()->json([
@@ -85,13 +89,17 @@ class CategoryController extends Controller
     }
 
     // تحديث تصنيف (PUT/PATCH /api/categories/{id})
-    public function update(Request $request, Category $category)
+    public function update(UpdateCategoryRequest $request, Category $category)
     {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
-        ]);
+        $validatedData = $request->validated();
 
-        $category->update($request->all());
+        if (isset($validatedData['name'])) {
+            $validatedData['slug'] = Str::slug($validatedData['name']);
+        }
+
+        $validatedData['updated_by'] = auth()->id() ?? 1;
+
+        $category->update($validatedData);
 
         return response()->json([
             'status'  => true,
