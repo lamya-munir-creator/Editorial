@@ -10,6 +10,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -105,4 +106,17 @@ class AuthController extends Controller
             ]
         ], 200);
     }
+    /**
+ * تسجيل الخروج وحذف التوكن الحالي
+ * POST /api/logout
+ */
+public function logout(Request $request)
+{
+    $request->user()->currentAccessToken()->delete();
+
+    return response()->json([
+        'status'  => true,
+        'message' => __('Logged out successfully'),
+    ], 200);
+}
 }
