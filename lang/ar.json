@@ -1,0 +1,20 @@
+{
+  "First Name": "الاسم الأول",
+  "Last Name": "الاسم الأخير",
+  "Username": "اسم المستخدم",
+  "Email": "البريد الإلكتروني",
+  "Password": "كلمة المرور",
+  "Account created successfully": "تم إنشاء الحساب بنجاح",
+  "Logged in successfully": "تم تسجيل الدخول بنجاح",
+  "The provided credentials do not match our records.": "بيانات الاعتماد المقدمة غير صحيحة.",
+  "Your account is currently inactive or suspended.": "حسابك غير مفعل أو معطل حالياً.",
+  "The email field is required.": "البريد الإلكتروني مطلوب.",
+  "Please enter a valid email address.": "يرجى إدخال بريد إلكتروني صحيح.",
+  "The password field is required.": "كلمة المرور مطلوبة.",
+  "The first name field is required.": "الاسم الأول مطلوب.",
+  "The username field is required.": "اسم المستخدم مطلوب.",
+  "The username has already been taken.": "اسم المستخدم مستخدم بالفعل.",
+  "The email has already been taken.": "البريد الإلكتروني مسجل سابقاً.",
+  "The password confirmation does not match.": "كلمة المرور وتأكيد كلمة المرور غير متطابقين.",
+  "The password must be at least 8 characters.": "كلمة المرور يجب ألا تقل عن 8 أحرف."
+}
