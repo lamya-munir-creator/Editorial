@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\ArticleController;
@@ -20,44 +19,27 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SitemapController;
 
-// إدراج مسارات Breeze التلقائية أولاً (كاستعادة كلمة المرور والتأكيد)
-require __DIR__.'/auth.php';
+// 1. مسار يجلب بيانات المستخدم الحالي عند تسجيل الدخول
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware('auth:sanctum');
 
-// =========================================================================
-// 1. مسارات المصادقة الرئيسية للـ API (المهمة 1 والمهمة 2 عبر AuthController)
-// يتم تعريفها هنا لتتغلب وتكون الأولوية لها عبر AuthController الخاص بـ API
-// =========================================================================
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+// 2. خريطة الموقع Dynamic Sitemap XML
+Route::get('sitemap.xml', [SitemapController::class, 'index']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', function (Request $request) {
-        return response()->json([
-            'status' => true,
-            'data'   => $request->user()->load('role')
-        ]);
-    });
-});
-
-// =========================================================================
-// 2. خريطة الموقع والمسارات المخصصة بالـ Slug
-// =========================================================================
-Route::get('/sitemap.xml', [SitemapController::class, 'index']);
-Route::get('/articles/{article}/related', [ArticleController::class, 'related']);
-Route::get('/categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
-Route::get('/authors/slug/{slug}', [AuthorController::class, 'showBySlug']);
-Route::get('/pages/homepage', [PageController::class, 'homepage']);
-Route::get('/pages/slug/{slug}', [PageController::class, 'showBySlug']);
+// 3. مسارات مخصصة بالـ Slug والخدمات الفرعية
+Route::get('articles/{article}/related', [ArticleController::class, 'related']);
+Route::get('categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
+Route::get('authors/slug/{slug}', [AuthorController::class, 'showBySlug']);
+Route::get('pages/homepage', [PageController::class, 'homepage']);
+Route::get('pages/slug/{slug}', [PageController::class, 'showBySlug']);
 
 Route::post(
-    '/newsletter-subscribers/unsubscribe',
+    'newsletter-subscribers/unsubscribe',
     [NewsletterSubscriberController::class, 'unsubscribe']
 );
 
-// =========================================================================
-// 3. مسارات الموارد العامة (Public RESTful Resources)
-// =========================================================================
+// 4. مسارات الـ API العامة (Public API Resources)
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('tags', TagController::class);
 Route::apiResource('articles', ArticleController::class);
