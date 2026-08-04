@@ -20,8 +20,12 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SitemapController;
 
+// إدراج مسارات Breeze التلقائية أولاً (كاستعادة كلمة المرور والتأكيد)
+require __DIR__.'/auth.php';
+
 // =========================================================================
-// 1. مسارات المصادقة للـ REST API (Sanctum Token Authentication & JSON Responses)
+// 1. مسارات المصادقة الرئيسية للـ API (المهمة 1 والمهمة 2 عبر AuthController)
+// يتم تعريفها هنا لتتغلب وتكون الأولوية لها عبر AuthController الخاص بـ API
 // =========================================================================
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -35,9 +39,6 @@ Route::middleware('auth:sanctum')->group(function () {
         ]);
     });
 });
-
-// إدراج بقية مسارات Breeze مثل استعادة كلمة المرور
-require __DIR__.'/auth.php';
 
 // =========================================================================
 // 2. خريطة الموقع والمسارات المخصصة بالـ Slug
