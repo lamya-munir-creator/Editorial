@@ -34,6 +34,29 @@ class LoginRequest extends FormRequest
     }
 
     /**
+     * ترجمة أسماء الحقول متعددة اللغات (عربي / إنجليزي).
+     */
+    public function attributes(): array
+    {
+        return [
+            'email'    => __('Email'),
+            'password' => __('Password'),
+        ];
+    }
+
+    /**
+     * رسائل الخطأ المخصصة مع دعم الترجمة الديناميكية بحسب لغة الطلب.
+     */
+    public function messages(): array
+    {
+        return [
+            'email.required'    => __('The email field is required.'),
+            'email.email'       => __('Please enter a valid email address.'),
+            'password.required' => __('The password field is required.'),
+        ];
+    }
+
+    /**
      * Attempt to authenticate the request's credentials.
      *
      * @throws ValidationException
