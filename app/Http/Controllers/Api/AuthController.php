@@ -119,4 +119,15 @@ public function logout(Request $request)
         'message' => __('Logged out successfully'),
     ], 200);
 }
+/**
+ * جلب بيانات المستخدم المسجل حاليًا
+ * GET /api/user
+ */
+public function user(Request $request)
+{
+    return response()->json([
+        'status' => true,
+        'data'   => $request->user()->load('role'),
+    ], 200);
+}
 }
