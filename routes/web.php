@@ -1,9 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\SitemapController;
 
 Route::get('/', function () {
-    return ['Laravel' => app()->version()];
+    return view('welcome');
 });
 
-require __DIR__.'/auth.php';
+// إتاحة خريطة الموقع على النطاق الرئيسي مباشرة /sitemap.xml
+Route::get('sitemap.xml', [SitemapController::class, 'index']);
