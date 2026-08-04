@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\ArticleController;
@@ -27,19 +28,25 @@ Route::get('/user', function (Request $request) {
 // 2. خريطة الموقع Dynamic Sitemap XML
 Route::get('sitemap.xml', [SitemapController::class, 'index']);
 
-// 3. مسارات مخصصة بالـ Slug والخدمات الفرعية
-Route::get('articles/{article}/related', [ArticleController::class, 'related']);
-Route::get('categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
-Route::get('authors/slug/{slug}', [AuthorController::class, 'showBySlug']);
-Route::get('pages/homepage', [PageController::class, 'homepage']);
-Route::get('pages/slug/{slug}', [PageController::class, 'showBySlug']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/user', [AuthController::class, 'user']);
+});
+
+// 2. خريطة الموقع والمسارات المخصصة بالـ Slug
+Route::get('/sitemap.xml', [SitemapController::class, 'index']);
+Route::get('/articles/{article}/related', [ArticleController::class, 'related']);
+Route::get('/categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
+Route::get('/authors/slug/{slug}', [AuthorController::class, 'showBySlug']);
+Route::get('/pages/homepage', [PageController::class, 'homepage']);
+Route::get('/pages/slug/{slug}', [PageController::class, 'showBySlug']);
 
 Route::post(
-    'newsletter-subscribers/unsubscribe',
+    '/newsletter-subscribers/unsubscribe',
     [NewsletterSubscriberController::class, 'unsubscribe']
 );
 
-// 4. مسارات الـ API العامة (Public API Resources)
+// 3. مسارات الموارد العامة (Public RESTful Resources)
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('tags', TagController::class);
 Route::apiResource('articles', ArticleController::class);
@@ -57,3 +64,4 @@ Route::apiResource('menu-items', MenuItemController::class);
 Route::apiResource('settings', SettingController::class);
 Route::apiResource('users', UserController::class);
 Route::apiResource('roles', RoleController::class);
+
