@@ -20,20 +20,35 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SitemapController;
 
-// 1. مسار يجلب بيانات المستخدم الحالي عند تسجيل الدخول
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// إدراج مسارات Breeze (مثل استعادة كلمة المرور)
+require __DIR__.'/auth.php';
 
-// 2. خريطة الموقع Dynamic Sitemap XML
-Route::get('sitemap.xml', [SitemapController::class, 'index']);
+// =========================================================================
+// 1. مسارات المصادقة الرئيسية للـ API (عبر AuthController)
+// =========================================================================
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+<<<<<<< HEAD
     Route::get('/user', [AuthController::class, 'user']);
 });
 
 // 2. خريطة الموقع والمسارات المخصصة بالـ Slug
+=======
+    Route::get('/user', function (Request $request) {
+        return response()->json([
+            'status' => true,
+            'data'   => $request->user()->load('role')
+        ]);
+    });
+});
+
+// =========================================================================
+// 2. خريطة الموقع والمسارات المخصصة بالـ Slug
+// =========================================================================
+>>>>>>> develop
 Route::get('/sitemap.xml', [SitemapController::class, 'index']);
 Route::get('/articles/{article}/related', [ArticleController::class, 'related']);
 Route::get('/categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
@@ -46,7 +61,13 @@ Route::post(
     [NewsletterSubscriberController::class, 'unsubscribe']
 );
 
+<<<<<<< HEAD
 // 3. مسارات الموارد العامة (Public RESTful Resources)
+=======
+// =========================================================================
+// 3. مسارات الموارد العامة (Public RESTful Resources)
+// =========================================================================
+>>>>>>> develop
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('tags', TagController::class);
 Route::apiResource('articles', ArticleController::class);
