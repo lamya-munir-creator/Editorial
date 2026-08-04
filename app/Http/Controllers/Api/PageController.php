@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Page;
+use App\Models\Media;
 use Illuminate\Http\Request;
+use App\Http\Requests\StorePageRequest;
+use App\Http\Requests\UpdatePageRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -36,22 +39,11 @@ class PageController extends Controller
     }
 
     /**
-     * إنشاء صفحة جديدة.
+     * إنشاء صفحة جديدة مع التحقق عبر StorePageRequest ومعالجة رفع صورة الهيدر.
      */
-    public function store(Request $request)
+    public function store(StorePageRequest $request)
     {
-        $validated = $request->validate([
-            'featured_image_id' => 'nullable|exists:media,id',
-            'title' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:pages,slug',
-            'content' => 'required|string',
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:500',
-            'template' => 'nullable|string|max:100',
-            'is_homepage' => 'sometimes|boolean',
-            'status' => 'required|in:draft,published,archived',
-            'published_at' => 'nullable|date',
-        ]);
+        $validated = $request->validated();
 
         $validated['uuid'] = Str::uuid();
 
@@ -61,6 +53,32 @@ class PageController extends Controller
 
         $validated['created_by'] = auth()->id() ?? 1;
         $validated['updated_by'] = null;
+
+        // =========================================================================
+        // إضافة جديدة: معالجة رفع صورة الهيدر البارزة تلقائياً إن أرسلت كملف (image)
+        // =========================================================================
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $path = $file->store('pages', 'public');
+
+            $media = Media::create([
+                'uuid'          => (string) Str::uuid(),
+                'uploaded_by'   => auth()->id() ?? 1,
+                'file_name'     => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk'          => 'public',
+                'path'          => $path,
+                'webp_path'     => $path,
+                'mime_type'     => $file->getClientMimeType(),
+                'extension'     => $file->getClientOriginalExtension(),
+                'file_size'     => $file->getSize(),
+                'type'          => 'image',
+                'visibility'    => 'public',
+                'created_by'    => auth()->id() ?? 1,
+            ]);
+
+            $validated['featured_image_id'] = $media->id;
+        }
 
         if (($validated['is_homepage'] ?? false) === true) {
             Page::where('is_homepage', true)
@@ -107,28 +125,11 @@ class PageController extends Controller
     }
 
     /**
-     * تحديث الصفحة.
+     * تحديث الصفحة مع التحقق عبر UpdatePageRequest ومعالجة تحديث الصورة.
      */
-    public function update(Request $request, Page $page)
+    public function update(UpdatePageRequest $request, Page $page)
     {
-        $validated = $request->validate([
-            'featured_image_id' => 'sometimes|nullable|exists:media,id',
-            'title' => 'sometimes|required|string|max:255',
-            'slug' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('pages', 'slug')->ignore($page->id),
-            ],
-            'content' => 'sometimes|required|string',
-            'meta_title' => 'sometimes|nullable|string|max:255',
-            'meta_description' => 'sometimes|nullable|string|max:500',
-            'template' => 'sometimes|required|string|max:100',
-            'is_homepage' => 'sometimes|boolean',
-            'status' => 'sometimes|required|in:draft,published,archived',
-            'published_at' => 'sometimes|nullable|date',
-        ]);
+        $validated = $request->validated();
 
         if (isset($validated['slug'])) {
             $validated['slug'] = Str::slug($validated['slug']);
@@ -143,6 +144,32 @@ class PageController extends Controller
         }
 
         $validated['updated_by'] = auth()->id() ?? 1;
+
+        // =========================================================================
+        // إضافة جديدة: معالجة تحديث أو رفع صورة بارزة جديدة للصفحة
+        // =========================================================================
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $path = $file->store('pages', 'public');
+
+            $media = Media::create([
+                'uuid'          => (string) Str::uuid(),
+                'uploaded_by'   => auth()->id() ?? 1,
+                'file_name'     => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk'          => 'public',
+                'path'          => $path,
+                'webp_path'     => $path,
+                'mime_type'     => $file->getClientMimeType(),
+                'extension'     => $file->getClientOriginalExtension(),
+                'file_size'     => $file->getSize(),
+                'type'          => 'image',
+                'visibility'    => 'public',
+                'created_by'    => auth()->id() ?? 1,
+            ]);
+
+            $validated['featured_image_id'] = $media->id;
+        }
 
         if (
             array_key_exists('is_homepage', $validated)
