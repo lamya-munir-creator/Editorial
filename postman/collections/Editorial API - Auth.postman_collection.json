@@ -1,0 +1,98 @@
+{
+  "info": {
+    "_postman_id": "1d73e24c-5b1e-45a5-91ae-63c5a3d5aed2",
+    "name": "Editorial API - Auth",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "56966227",
+    "_collection_link": "https://go.postman.co/collection/56966227-1d73e24c-5b1e-45a5-91ae-63c5a3d5aed2?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "إبلاغ السيرفر بـ JSON"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "description": "لاستقبال الاستجابة بصيغة JSON"
+          },
+          {
+            "key": "Accept-Language",
+            "value": "ar",
+            "description": "تحديد لغة الرد (عربي / إنجليزي)"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"first_name\": \"أحمد\",\r\n    \"last_name\": \"محمد\",\r\n    \"username\": \"ahmed_tester\",\r\n    \"email\": \"ahmed@example.com\",\r\n    \"password\": \"12345678\",\r\n    \"password_confirmation\": \"12345678\",\r\n    \"role_id\": 4\r\n}\r\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/register",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "description": "لإرسال البيانات بصيغة JSON"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "description": "لاستقبال الاستجابة بصيغة JSON بدلاً من صفحة HTML"
+          },
+          {
+            "key": "Accept-Language",
+            "value": "ar",
+            "description": "لتحديد لغة الرسائل المرجعة"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/login",
+          "protocol": "http",
+          "host": [
+            "127",
+            "0",
+            "0",
+            "1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
