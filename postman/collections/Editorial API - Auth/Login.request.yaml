@@ -1,4 +1,5 @@
 $kind: http-request
+name: Login
 url: http://127.0.0.1:8000/api/login
 method: POST
 headers:
@@ -11,4 +12,13 @@ headers:
   - key: Accept-Language
     value: ar
     description: لتحديد لغة الرسائل المرجعة
+body:
+  type: json
+  content: "{\r
+
+    \    \"email\": \"ahmed@example.com\",\r
+
+    \    \"password\": \"12345678\"\r
+
+    }"
 order: 2000
