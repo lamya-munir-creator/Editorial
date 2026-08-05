@@ -43,7 +43,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم إنشاء التصنيف بنجاح',
+            'message' => __('Category created successfully'),
             'data'    => new CategoryResource($category)
         ], 201);
     }
@@ -65,7 +65,7 @@ class CategoryController extends Controller
         if (!$category) {
             return response()->json([
                 'status'  => false,
-                'message' => 'التصنيف غير موجود'
+                'message' => __('Category not found')
             ], 404);
         }
 
@@ -103,7 +103,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم تحديث التصنيف بنجاح',
+            'message' => __('Category updated successfully'),
             'data'    => new CategoryResource($category)
         ], 200);
     }
@@ -115,7 +115,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف التصنيف بنجاح'
+            'message' => __('Category deleted successfully')
         ], 200);
     }
 }

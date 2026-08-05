@@ -70,7 +70,7 @@ class AdvertisementController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حفظ الإعلان بنجاح.',
+            'message' => __('Advertisement created successfully'),
             'data'    => $ad->load('image')
         ], 201);
     }
@@ -101,7 +101,7 @@ class AdvertisementController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم تحديث الإعلان بنجاح.',
+            'message' => __('Advertisement updated successfully'),
             'data'    => $ad->load('image')
         ], 200);
     }
@@ -116,7 +116,7 @@ class AdvertisementController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف الإعلان بنجاح.'
+            'message' => __('Advertisement deleted successfully')
         ], 200);
     }
 }

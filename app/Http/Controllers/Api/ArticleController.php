@@ -72,10 +72,13 @@ class ArticleController extends Controller
      */
     public function store(StoreArticleRequest $request)
     {
+        // 1. التحقق من صلاحيات إنشاء مقال عبر ArticlePolicy
+        $this->authorize('create', Article::class);
+
         // استقبال البيانات بعد التحقق الآلي في StoreArticleRequest
         $validated = $request->validated();
 
-        $validated['author_id']  = auth()->id() ?? 1;
+        $validated['author_id']  = auth()->user()?->authorProfile?->id ?? auth()->id() ?? 1;
         $validated['created_by'] = auth()->id() ?? 1;
         $validated['slug']       = Str::slug($request->title);
         $validated['published_at'] = ($validated['status'] === 'published') ? now() : null;
@@ -115,7 +118,7 @@ class ArticleController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم نشر المقال بنجاح',
+            'message' => __('Article created successfully'),
             'data'    => new ArticleResource($article->load(['category', 'tags', 'author', 'featuredImage']))
         ], 201);
     }
@@ -136,6 +139,9 @@ class ArticleController extends Controller
      */
     public function update(UpdateArticleRequest $request, Article $article)
     {
+        // 1. التحقق من سياسة الملكية والصلاحية للمقال قبل التعديل
+        $this->authorize('update', $article);
+
         // استقبال البيانات بعد التحقق من UpdateArticleRequest
         $validated = $request->validated();
 
@@ -179,19 +185,22 @@ class ArticleController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم تحديث المقال بنجاح',
+            'message' => __('Article updated successfully'),
             'data'    => new ArticleResource($article->fresh()->load(['category', 'tags', 'author', 'featuredImage']))
         ], 200);
     }
 
     public function destroy(Article $article)
     {
+        // 1. التحقق من سياسة الحذف عبر ArticlePolicy
+        $this->authorize('delete', $article);
+
         $article->tags()->detach();
         $article->delete();
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف المقال بنجاح'
+            'message' => __('Article deleted successfully')
         ], 200);
     }
 

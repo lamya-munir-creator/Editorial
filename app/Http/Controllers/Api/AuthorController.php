@@ -80,7 +80,7 @@ class AuthorController extends Controller
         if (!$author) {
             return response()->json([
                 'status'  => false,
-                'message' => 'الكاتب غير موجود'
+                'message' => __('الكاتب غير موجود')
             ], 404);
         }
 
