@@ -31,24 +31,12 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-<<<<<<< HEAD
     Route::get('/user', [AuthController::class, 'user']);
 });
 
-// 2. خريطة الموقع والمسارات المخصصة بالـ Slug
-=======
-    Route::get('/user', function (Request $request) {
-        return response()->json([
-            'status' => true,
-            'data'   => $request->user()->load('role')
-        ]);
-    });
-});
-
 // =========================================================================
 // 2. خريطة الموقع والمسارات المخصصة بالـ Slug
 // =========================================================================
->>>>>>> develop
 Route::get('/sitemap.xml', [SitemapController::class, 'index']);
 Route::get('/articles/{article}/related', [ArticleController::class, 'related']);
 Route::get('/categories/slug/{slug}', [CategoryController::class, 'showBySlug']);
@@ -61,13 +49,9 @@ Route::post(
     [NewsletterSubscriberController::class, 'unsubscribe']
 );
 
-<<<<<<< HEAD
-// 3. مسارات الموارد العامة (Public RESTful Resources)
-=======
 // =========================================================================
 // 3. مسارات الموارد العامة (Public RESTful Resources)
 // =========================================================================
->>>>>>> develop
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('tags', TagController::class);
 Route::apiResource('articles', ArticleController::class);
@@ -85,4 +69,5 @@ Route::apiResource('menu-items', MenuItemController::class);
 Route::apiResource('settings', SettingController::class);
 Route::apiResource('users', UserController::class);
 Route::apiResource('roles', RoleController::class);
+
 
