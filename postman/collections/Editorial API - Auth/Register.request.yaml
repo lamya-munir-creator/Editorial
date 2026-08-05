@@ -1,0 +1,33 @@
+$kind: http-request
+url: http://127.0.0.1:8000/api/register
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+    description: إبلاغ السيرفر بـ JSON
+  - key: Accept
+    value: application/json
+    description: لاستقبال الاستجابة بصيغة JSON
+  - key: Accept-Language
+    value: ar
+    description: تحديد لغة الرد (عربي / إنجليزي)
+body:
+  type: json
+  content: "{\r
+
+    \    \"first_name\": \"أحمد\",\r
+
+    \    \"last_name\": \"محمد\",\r
+
+    \    \"username\": \"ahmed_tester\",\r
+
+    \    \"email\": \"ahmed@example.com\",\r
+
+    \    \"password\": \"12345678\",\r
+
+    \    \"password_confirmation\": \"12345678\",\r
+
+    \    \"role_id\": 4\r
+
+    }\r\n"
+order: 1000

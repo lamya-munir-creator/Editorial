@@ -120,5 +120,23 @@ class AuthController extends Controller
             'message' => __('Logged out successfully'),
         ], 200);
     }
+
+    /**
+     * جلب بيانات المستخدم المسجل حالياً مع الأدوار والصلاحيات
+     * GET /api/user
+     */
+    public function user(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'status' => true,
+            'data'   => [
+                'user'        => $user->load('role', 'roles'),
+                'permissions' => $user->getAllPermissions()->pluck('name'),
+            ]
+        ], 200);
+    }
 }
+
 
