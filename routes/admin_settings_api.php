@@ -10,17 +10,49 @@ use App\Http\Controllers\Api\MenuItemController;
 
 /*
 |--------------------------------------------------------------------------
-| مسارات الشخص الثالث: إعدادات النظام والمستخدمين (RBAC & Settings)
+| Admin Settings & RBAC Routes
 |--------------------------------------------------------------------------
 */
 
-// مسارات رسائل اتصل بنا والإجابة عليها
-Route::apiResource('contact-messages', ContactMessageController::class);
-Route::post('contact-messages/{id}/reply', [ContactMessageController::class, 'reply']);
+// استقبال رسالة جديدة متاح للزائر بدون تسجيل دخول
+Route::post('/contact-messages', [ContactMessageController::class, 'store']);
 
-// مسارات الإدارة العليا (الأدوار، المستخدمين، الإعدادات، القوائم)
-Route::apiResource('users', UserController::class);
-Route::apiResource('roles', RoleController::class);
-Route::apiResource('settings', SettingController::class);
-Route::apiResource('menus', MenuController::class);
-Route::apiResource('menu-items', MenuItemController::class);
+// مسارات لوحة التحكم: تحتاج توكن صالح ودور admin
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+
+    // إدارة المستخدمين
+    Route::apiResource('users', UserController::class);
+
+    // تغيير دور المستخدم
+    Route::patch(
+        '/users/{user}/role',
+        [UserController::class, 'changeRole']
+    );
+
+    // تغيير حالة حساب المستخدم
+    Route::patch(
+        '/users/{user}/status',
+        [UserController::class, 'changeStatus']
+    );
+
+    // إدارة الأدوار
+    Route::apiResource('roles', RoleController::class);
+
+    // إدارة إعدادات النظام
+    Route::apiResource('settings', SettingController::class);
+
+    // إدارة رسائل التواصل، باستثناء إنشاء الرسالة العامة
+    Route::apiResource(
+        'contact-messages',
+        ContactMessageController::class
+    )->except(['store']);
+
+    Route::post(
+        '/contact-messages/{id}/reply',
+        [ContactMessageController::class, 'reply']
+    );
+
+    // إدارة القوائم
+    Route::apiResource('menus', MenuController::class);
+    Route::apiResource('menu-items', MenuItemController::class);
+});
