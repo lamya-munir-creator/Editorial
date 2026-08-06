@@ -9,7 +9,6 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
@@ -83,10 +82,11 @@ class AuthController extends Controller
 
         // 2. التحقق من مطابقة بيانات الاعتماد وكلمة المرور
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => [__('The provided credentials do not match our records.')],
-            ]);
-        }
+    return response()->json([
+        'status'  => false,
+        'message' => __('The provided credentials do not match our records.'),
+    ], 401);
+}
 
         // 3. التأكد من حالة الحساب إذا كان غير فعال أو معطل
         if ($user->status === 'inactive' || $user->status === 'suspended') {
