@@ -1,0 +1,26 @@
+$kind: http-request
+name: Create Article - Success (Author)
+url: http://127.0.0.1:8000/api/articles
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \    \"title\": \"2مقال تجريبي جديد لاختبار الصلاحيات\",\r
+
+    \    \"content\": \"هذا محتوى تجريبي للمقال يتم إرساله عبر بوست مان للتحقق
+    من عمل نظام الحماية والسياسات.\",\r
+
+    \    \"category_id\": 1,\r
+
+    \    \"status\": \"published\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: 14|6tO6GsRXBZtQFSqi40NFrrVTTXbwMLIV4X2zAgLUaf093289
+order: 3289959833115424

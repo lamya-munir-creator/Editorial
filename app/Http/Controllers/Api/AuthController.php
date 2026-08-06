@@ -44,6 +44,13 @@ class AuthController extends Controller
             'status'     => 'active',
         ]);
 
+        // إسناد دور Spatie للمستخدم الجديد
+        $targetRole = $request->input('role');
+        if (! $targetRole && $request->filled('role_id')) {
+            $targetRole = Role::where('id', $request->role_id)->value('name');
+        }
+        $user->assignRole($targetRole ?? 'user');
+
         // 4. توليد توكن Sanctum للمستخدم الجديد مباشرة
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -52,7 +59,7 @@ class AuthController extends Controller
             'status'  => true,
             'message' => __('Account created successfully'),
             'data'    => [
-                'user'         => $user->load('role'),
+                'user'         => $user->load('role', 'roles'),
                 'access_token' => $token,
                 'token_type'   => 'Bearer',
             ]

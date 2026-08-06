@@ -52,7 +52,7 @@ class CommentController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم إضافة التعليق بنجاح وهو قيد المراجعة',
+            'message' => __('Comment created successfully and is pending review'),
             'data'    => $comment
         ], 201);
     }
@@ -69,7 +69,7 @@ class CommentController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم تحديث التعليق بنجاح',
+            'message' => __('Comment updated successfully'),
             'data'    => $comment
         ], 200);
     }
@@ -82,7 +82,7 @@ class CommentController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف التعليق بنجاح'
+            'message' => __('Comment deleted successfully')
         ], 200);
     }
 }

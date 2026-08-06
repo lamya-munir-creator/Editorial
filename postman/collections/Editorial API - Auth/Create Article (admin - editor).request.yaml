@@ -1,0 +1,26 @@
+$kind: http-request
+name: Create Article (admin - editor)
+url: http://127.0.0.1:8000/api/articles
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \    \"title\": \"تقرير عن مستقبل الذكاء الاصطناعي في عام 2026\",\r
+
+    \    \"content\": \"هذا التقرير تم إعداده ونشره مباشرة بواسطة المحرر العام
+    للنظام.\",\r
+
+    \    \"category_id\": 1,\r
+
+    \    \"status\": \"published\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: 18|fqRZQQbBRvT3AAb6mdttviwWMFHhqdMPbOEhm1Fg7871ea30
+order: 4500209068685508
