@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Models\Author;
 use App\Models\Media;
 use Illuminate\Http\Request;
 use App\Http\Resources\ArticleResource;
@@ -78,8 +79,26 @@ class ArticleController extends Controller
         // استقبال البيانات بعد التحقق الآلي في StoreArticleRequest
         $validated = $request->validated();
 
-        $validated['author_id']  = auth()->user()?->authorProfile?->id ?? auth()->id() ?? 1;
-        $validated['created_by'] = auth()->id() ?? 1;
+        // 2. إيجاد أو إنشاء سجل الكاتب بجدول authors للربط الصحيح مع قاعدة البيانات
+        $user = auth()->user();
+        $author = $user?->authorProfile;
+
+        if (! $author && $user) {
+            $author = Author::firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'uuid'         => (string) Str::uuid(),
+                    'display_name' => $user->full_name ?: $user->username,
+                    'slug'         => Str::slug($user->username ?: $user->first_name) . '-' . Str::random(4),
+                    'gender'       => 'male',
+                    'status'       => 'active',
+                    'created_by'   => $user->id,
+                ]
+            );
+        }
+
+        $validated['author_id']  = $author?->id ?? 1;
+        $validated['created_by'] = $user?->id ?? 1;
         $validated['slug']       = Str::slug($request->title);
         $validated['published_at'] = ($validated['status'] === 'published') ? now() : null;
 

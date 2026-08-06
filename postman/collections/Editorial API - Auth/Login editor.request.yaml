@@ -1,0 +1,18 @@
+$kind: http-request
+name: Login editor
+url: http://127.0.0.1:8000/api/login
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Accept-Language: ar
+body:
+  type: json
+  content: "{\r
+
+    \    \"email\": \"admin@example.com\",\r
+
+    \    \"password\": \"password\"\r
+
+    }\r\n"
+order: 4256718603264183

@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -43,11 +43,11 @@ class RoleSeeder extends Seeder
         }
 
         // 2. إنشاء وتحديث الأدوار عبر Spatie
-        $adminRole     = Role::firstOrCreate(['name' => 'admin',     'guard_name' => 'web']);
-        $editorRole    = Role::firstOrCreate(['name' => 'editor',    'guard_name' => 'web']);
-        $moderatorRole = Role::firstOrCreate(['name' => 'moderator', 'guard_name' => 'web']);
-        $authorRole    = Role::firstOrCreate(['name' => 'author',    'guard_name' => 'web']);
-        $userRole      = Role::firstOrCreate(['name' => 'user',      'guard_name' => 'web']);
+        $adminRole     = Role::firstOrCreate(['name' => 'admin'],     ['uuid' => (string) Str::uuid(), 'slug' => 'admin',     'status' => 'active', 'guard_name' => 'web']);
+        $editorRole    = Role::firstOrCreate(['name' => 'editor'],    ['uuid' => (string) Str::uuid(), 'slug' => 'editor',    'status' => 'active', 'guard_name' => 'web']);
+        $moderatorRole = Role::firstOrCreate(['name' => 'moderator'], ['uuid' => (string) Str::uuid(), 'slug' => 'moderator', 'status' => 'active', 'guard_name' => 'web']);
+        $authorRole    = Role::firstOrCreate(['name' => 'author'],    ['uuid' => (string) Str::uuid(), 'slug' => 'author',    'status' => 'active', 'guard_name' => 'web']);
+        $userRole      = Role::firstOrCreate(['name' => 'user'],      ['uuid' => (string) Str::uuid(), 'slug' => 'user',      'status' => 'active', 'guard_name' => 'web']);
 
         // 3. إسناد الصلاحيات المحددة لكل دور
 
@@ -102,6 +102,12 @@ class RoleSeeder extends Seeder
                     'guard_name'  => 'web',
                 ]
             );
+        }
+
+        // 5. مزامنة أدوار Spatie لجميع المستخدمين في قاعدة البيانات
+        foreach (\App\Models\User::all() as $u) {
+            $roleName = \App\Models\Role::find($u->role_id)?->name ?? 'user';
+            $u->syncRoles([$roleName]);
         }
     }
 }

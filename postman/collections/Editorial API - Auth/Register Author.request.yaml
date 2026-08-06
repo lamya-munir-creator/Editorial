@@ -1,0 +1,28 @@
+$kind: http-request
+name: Register Author
+url: http://127.0.0.1:8000/api/register
+method: POST
+headers:
+  Content-Type: application/json
+  Accept: application/json
+  Accept-Language: ar
+body:
+  type: json
+  content: "{\r
+
+    \    \"first_name\": \"أحمد\",\r
+
+    \    \"last_name\": \"الصحفي\",\r
+
+    \    \"username\": \"new-author-2026\",\r
+
+    \    \"email\": \"newauthor@editorial.com\",\r
+
+    \    \"password\": \"password123\",\r
+
+    \    \"password_confirmation\": \"password123\",\r
+
+    \    \"role\": \"author\"\r
+
+    }\r\n"
+order: 3869520573851694

@@ -1,0 +1,21 @@
+$kind: http-request
+name: Update Article (editor)
+url: http://127.0.0.1:8000/api/articles/26
+method: PUT
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \    \"title\": \"عنوان المقال بعد المراجعة والتعديل بواسطة المحرر\",\r
+
+    \    \"status\": \"published\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: 17|j150W3UDUAg2S1vktWSCKrqilrqYBMHMmouNaeLvad21fb85
+order: 4501011455867407

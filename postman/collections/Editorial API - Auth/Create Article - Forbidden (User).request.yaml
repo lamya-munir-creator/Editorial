@@ -1,10 +1,12 @@
 $kind: http-request
-name: Create Article
+name: Create Article - Forbidden (User)
 url: http://127.0.0.1:8000/api/articles
 method: POST
 headers:
-  Accept: application/json
-  Content-Type: application/json
+  - key: Accept
+    value: application/json
+  - key: Content-Type
+    value: application/json
 body:
   type: json
   content: "{\r
@@ -20,7 +22,8 @@ body:
 
     }"
 auth:
-  type: bearer
   credentials:
-    token: 8|8gZyOpYgSR2WjQbM5200Gt3aChCyWPKpOj4Z6Ppm6bb98fa0
+    - key: token
+      value: 8|8gZyOpYgSR2WjQbM5200Gt3aChCyWPKpOj4Z6Ppm6bb98fa0
+  type: bearer
 order: 3226537502316376
