@@ -7,6 +7,7 @@ use App\Models\Comment;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreCommentRequest;
 use App\Http\Requests\UpdateCommentRequest;
+use Illuminate\Support\Facades\Gate;
 
 class CommentController extends Controller
 {
@@ -62,6 +63,8 @@ class CommentController extends Controller
      */
     public function update(UpdateCommentRequest $request, $id)
     {
+        Gate::authorize('approve-comment');
+        
         $comment = Comment::findOrFail($id);
         $validatedData = $request->validated();
 
@@ -77,6 +80,8 @@ class CommentController extends Controller
     // 5. حذف تعليق
     public function destroy($id)
     {
+        Gate::authorize('delete-comment');
+        
         $comment = Comment::findOrFail($id);
         $comment->delete();
 

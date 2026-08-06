@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateAdvertisementRequest;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class AdvertisementController extends Controller
 {
@@ -44,6 +45,8 @@ class AdvertisementController extends Controller
      */
     public function store(StoreAdvertisementRequest $request)
     {
+        Gate::authorize('manage-ads');
+
         $data = $request->validated();
 
         // 1. توليد الـ UUID إجبارياً للجدول
@@ -80,6 +83,8 @@ class AdvertisementController extends Controller
      */
     public function update(UpdateAdvertisementRequest $request, $id)
     {
+        Gate::authorize('manage-ads');
+
         $ad = Advertisement::findOrFail($id);
         $data = $request->validated();
 
@@ -111,6 +116,8 @@ class AdvertisementController extends Controller
      */
     public function destroy($id)
     {
+        Gate::authorize('manage-ads');
+
         $ad = Advertisement::findOrFail($id);
         $ad->delete();
 
