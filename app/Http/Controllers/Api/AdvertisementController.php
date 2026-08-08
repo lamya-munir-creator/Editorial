@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateAdvertisementRequest;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class AdvertisementController extends Controller
 {
@@ -44,6 +45,8 @@ class AdvertisementController extends Controller
      */
     public function store(StoreAdvertisementRequest $request)
     {
+        Gate::authorize('manage-ads');
+
         $data = $request->validated();
 
         // 1. توليد الـ UUID إجبارياً للجدول
@@ -70,7 +73,7 @@ class AdvertisementController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حفظ الإعلان بنجاح.',
+            'message' => __('Advertisement created successfully'),
             'data'    => $ad->load('image')
         ], 201);
     }
@@ -80,6 +83,8 @@ class AdvertisementController extends Controller
      */
     public function update(UpdateAdvertisementRequest $request, $id)
     {
+        Gate::authorize('manage-ads');
+
         $ad = Advertisement::findOrFail($id);
         $data = $request->validated();
 
@@ -101,7 +106,7 @@ class AdvertisementController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم تحديث الإعلان بنجاح.',
+            'message' => __('Advertisement updated successfully'),
             'data'    => $ad->load('image')
         ], 200);
     }
@@ -111,12 +116,14 @@ class AdvertisementController extends Controller
      */
     public function destroy($id)
     {
+        Gate::authorize('manage-ads');
+
         $ad = Advertisement::findOrFail($id);
         $ad->delete();
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف الإعلان بنجاح.'
+            'message' => __('Advertisement deleted successfully')
         ], 200);
     }
 }

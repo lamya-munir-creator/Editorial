@@ -80,7 +80,7 @@ class AuthorController extends Controller
         if (!$author) {
             return response()->json([
                 'status'  => false,
-                'message' => 'الكاتب غير موجود'
+                'message' => __('الكاتب غير موجود')
             ], 404);
         }
 
@@ -233,7 +233,7 @@ class AuthorController extends Controller
      */
     public function destroy($id)
     {
-        $author = Author::findOrFail($ID);
+        $author = Author::findOrFail($id);
         $author->delete();
 
         return response()->json([

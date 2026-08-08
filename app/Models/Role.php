@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Models\Role as SpatieRole;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -14,8 +14,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'slug',
     'description',
     'status',
+    'guard_name',
 ])]
-class Role extends Model
+class Role extends SpatieRole
 {
     use HasFactory, SoftDeletes;
 
@@ -35,7 +36,7 @@ class Role extends Model
         });
     }
 
-    public function users(): HasMany
+    public function customUsers(): HasMany
     {
         return $this->hasMany(User::class);
     }

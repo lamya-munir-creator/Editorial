@@ -7,6 +7,7 @@ use App\Models\Comment;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreCommentRequest;
 use App\Http\Requests\UpdateCommentRequest;
+use Illuminate\Support\Facades\Gate;
 
 class CommentController extends Controller
 {
@@ -52,7 +53,7 @@ class CommentController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم إضافة التعليق بنجاح وهو قيد المراجعة',
+            'message' => __('Comment created successfully and is pending review'),
             'data'    => $comment
         ], 201);
     }
@@ -62,6 +63,8 @@ class CommentController extends Controller
      */
     public function update(UpdateCommentRequest $request, $id)
     {
+        Gate::authorize('approve-comment');
+        
         $comment = Comment::findOrFail($id);
         $validatedData = $request->validated();
 
@@ -69,7 +72,7 @@ class CommentController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم تحديث التعليق بنجاح',
+            'message' => __('Comment updated successfully'),
             'data'    => $comment
         ], 200);
     }
@@ -77,12 +80,14 @@ class CommentController extends Controller
     // 5. حذف تعليق
     public function destroy($id)
     {
+        Gate::authorize('delete-comment');
+        
         $comment = Comment::findOrFail($id);
         $comment->delete();
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف التعليق بنجاح'
+            'message' => __('Comment deleted successfully')
         ], 200);
     }
 }

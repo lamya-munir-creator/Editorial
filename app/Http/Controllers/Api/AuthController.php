@@ -9,7 +9,7 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -43,6 +43,13 @@ class AuthController extends Controller
             'status'     => 'active',
         ]);
 
+        // إسناد دور Spatie للمستخدم الجديد
+        $targetRole = $request->input('role');
+        if (! $targetRole && $request->filled('role_id')) {
+            $targetRole = Role::where('id', $request->role_id)->value('name');
+        }
+        $user->assignRole($targetRole ?? 'user');
+
         // 4. توليد توكن Sanctum للمستخدم الجديد مباشرة
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -51,7 +58,7 @@ class AuthController extends Controller
             'status'  => true,
             'message' => __('Account created successfully'),
             'data'    => [
-                'user'         => $user->load('role'),
+                'user'         => $user->load('role', 'roles'),
                 'access_token' => $token,
                 'token_type'   => 'Bearer',
             ]
@@ -75,10 +82,11 @@ class AuthController extends Controller
 
         // 2. التحقق من مطابقة بيانات الاعتماد وكلمة المرور
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => [__('The provided credentials do not match our records.')],
-            ]);
-        }
+    return response()->json([
+        'status'  => false,
+        'message' => __('The provided credentials do not match our records.'),
+    ], 401);
+}
 
         // 3. التأكد من حالة الحساب إذا كان غير فعال أو معطل
         if ($user->status === 'inactive' || $user->status === 'suspended') {
@@ -105,4 +113,37 @@ class AuthController extends Controller
             ]
         ], 200);
     }
+
+    /**
+     * تسجيل الخروج وحذف التوكن الحالي
+     * POST /api/logout
+     */
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'status'  => true,
+            'message' => __('Logged out successfully'),
+        ], 200);
+    }
+
+    /**
+     * جلب بيانات المستخدم المسجل حالياً مع الأدوار والصلاحيات
+     * GET /api/user
+     */
+    public function user(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'status' => true,
+            'data'   => [
+                'user'        => $user->load('role', 'roles'),
+                'permissions' => $user->getAllPermissions()->pluck('name'),
+            ]
+        ], 200);
+    }
 }
+
+

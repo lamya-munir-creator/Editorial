@@ -1,0 +1,25 @@
+$kind: http-request
+name: Create Category (editor - admin)
+url: http://127.0.0.1:8000/api/categories
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \    \"name\": \"2قسم الذكاء الاصطناعي والتكنولوجيا\",\r
+
+    \    \"slug\": \"ai-tech-section\",\r
+
+    \    \"description\": \"قسم مخصص لمقالات التكنولوجيا والذكاء الاصطناعي\",\r
+
+    \    \"status\": \"active\"\r
+
+    }\r\n"
+auth:
+  type: bearer
+  credentials:
+    token: 18|fqRZQQbBRvT3AAb6mdttviwWMFHhqdMPbOEhm1Fg7871ea30
+order: 4474737674335230

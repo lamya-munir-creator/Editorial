@@ -1,0 +1,29 @@
+$kind: http-request
+name: Create Article - Forbidden (User)
+url: http://127.0.0.1:8000/api/articles
+method: POST
+headers:
+  - key: Accept
+    value: application/json
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: "{\r
+
+    \    \"title\": \"مقال تجريبي جديد لاختبار الصلاحيات\",\r
+
+    \    \"content\": \"هذا محتوى تجريبي للمقال يتم إرساله عبر بوست مان للتحقق
+    من عمل نظام الحماية والسياسات.\",\r
+
+    \    \"category_id\": 1,\r
+
+    \    \"status\": \"published\"\r
+
+    }"
+auth:
+  credentials:
+    - key: token
+      value: 8|8gZyOpYgSR2WjQbM5200Gt3aChCyWPKpOj4Z6Ppm6bb98fa0
+  type: bearer
+order: 3226537502316376

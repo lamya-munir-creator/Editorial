@@ -42,7 +42,7 @@ class TagController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم إنشاء الوسم بنجاح',
+            'message' => __('Tag created successfully'),
             'data'    => new TagResource($tag)
         ], 201);
     }
@@ -70,7 +70,7 @@ class TagController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم تحديث الوسم بنجاح',
+            'message' => __('Tag updated successfully'),
             'data'    => new TagResource($tag)
         ], 200);
     }
@@ -81,7 +81,7 @@ class TagController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف الوسم بنجاح'
+            'message' => __('Tag deleted successfully')
         ], 200);
     }
 }

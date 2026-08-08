@@ -1,0 +1,24 @@
+$kind: http-request
+name: Login
+url: http://127.0.0.1:8000/api/login
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+    description: لإرسال البيانات بصيغة JSON
+  - key: Accept
+    value: application/json
+    description: لاستقبال الاستجابة بصيغة JSON بدلاً من صفحة HTML
+  - key: Accept-Language
+    value: ar
+    description: لتحديد لغة الرسائل المرجعة
+body:
+  type: json
+  content: "{\r
+
+    \    \"email\": \"ahmed@example.com\",\r
+
+    \    \"password\": \"12345678\"\r
+
+    }"
+order: 2000

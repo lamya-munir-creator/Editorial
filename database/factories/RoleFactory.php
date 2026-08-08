@@ -19,11 +19,11 @@ class RoleFactory extends Factory
     public function definition(): array
 {
     $roles = [
-        'Admin',
-        'Editor',
-        'Author',
-        'Moderator',
-        'User',
+        'admin',
+        'editor',
+        'author',
+        'moderator',
+        'user',
     ];
 
     $name = fake()->unique()->randomElement($roles);
