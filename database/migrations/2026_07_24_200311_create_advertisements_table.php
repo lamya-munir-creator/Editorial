@@ -18,13 +18,14 @@ return new class extends Migration
             $table->uuid('uuid')->unique();
 
             $table->foreignId('image_id')
+                ->nullable()
                 ->constrained('media')
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
 
             $table->string('title');
 
-            $table->string('destination_url', 500);
+            $table->string('destination_url', 500)->nullable();
 
             $table->enum('position', [
                 'homepage_top',
