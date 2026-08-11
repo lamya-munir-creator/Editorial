@@ -31,6 +31,9 @@ use Spatie\Permission\Traits\HasRoles;
     'timezone',
     'last_login_at',
     'status',
+    'email_verified_at',
+    'otp_code',
+    'otp_expires_at',
     'created_by',
     'updated_by',
 ])]
@@ -50,6 +53,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'otp_expires_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

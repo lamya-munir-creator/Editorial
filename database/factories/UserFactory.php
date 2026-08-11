@@ -22,7 +22,7 @@ class UserFactory extends Factory
         return [
             'uuid' => (string) Str::uuid(),
 
-            'role_id' => Role::query()->inRandomOrder()->value('id'),
+            'role_id' => Role::query()->inRandomOrder()->value('id') ?? 1,
 
             'first_name' => fake()->firstName(),
             'last_name' => fake()->optional()->lastName(),

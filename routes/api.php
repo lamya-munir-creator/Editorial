@@ -15,6 +15,10 @@ require __DIR__.'/auth.php';
 
 // 1. مسارات المصادقة العامة والخاصة بـ API (عبر AuthController)
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/auth/send-otp', [AuthController::class, 'sendOtp']);
+Route::post('/verify-email-otp', [AuthController::class, 'verifyEmailOtp']);
+Route::post('/verify-otp', [AuthController::class, 'verifyEmailOtp']);
+Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
