@@ -19,6 +19,25 @@ Route::post('/contact-messages', [ContactMessageController::class, 'store']);
 
 // مسارات لوحة التحكم: تحتاج توكن صالح ودور admin
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    // إحصائيات وبحث لوحة التحكم
+    Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
+    Route::get('/search', [\App\Http\Controllers\Api\GlobalSearchController::class, 'search']);
+    
+    // الإشعارات
+    Route::get('/notifications/test', function (\Illuminate\Http\Request $request) {
+        $request->user()->notifications()->create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'type' => 'App\Notifications\SystemAlert',
+            'data' => [
+                'message' => 'مرحباً بك في نظام الإشعارات الجديد! هذا إشعار تجريبي.',
+                'type' => 'success'
+            ]
+        ]);
+        return response()->json(['message' => 'Test notification sent']);
+    });
+    Route::get('/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
+    Route::put('/notifications/{id}/read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+    Route::put('/notifications/read-all', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
 
     // إدارة المستخدمين
     Route::apiResource('users', UserController::class);
