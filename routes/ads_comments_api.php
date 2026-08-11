@@ -3,19 +3,26 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AdvertisementController;
 use App\Http\Controllers\Api\CommentController;
-use App\Http\Controllers\Api\NewsletterSubscriberController;
 
-/*
-|--------------------------------------------------------------------------
-| مسارات الشخص الثاني: النظام التفاعلي والإعلانات (Comments & Advertisements)
-|--------------------------------------------------------------------------
-*/
+// مسارات عامة (عرض التعليقات أو الإعلانات المتاحة للجميع)
+Route::get('ads', [AdvertisementController::class, 'index']);
+Route::get('articles/{article}/comments', [CommentController::class, 'index']);
 
-// مسارات إلغاء الاشتراك بالنشرة البريدية
-Route::post('/newsletter-subscribers/unsubscribe', [NewsletterSubscriberController::class, 'unsubscribe']);
+// مسارات محمية تسجيل الدخول (يتطلب Bearer Token)
+Route::middleware(['auth:sanctum'])->group(function () {
 
-// مسارات الإعلانات والتعليقات والنشرة البريدية (سيتم وضع حماية الصلاحيات بها لاحقاً)
-Route::apiResource('comments', CommentController::class);
-Route::apiResource('advertisements', AdvertisementController::class);
-Route::apiResource('newsletter-subscribers', NewsletterSubscriberController::class);
-Route::patch('/newsletter-subscribers/{id}/unsubscribe', [NewsletterSubscriberController::class, 'unsubscribe']);
+    // إضافة تعليق (متاح للمستخدم المسجل)
+    Route::post('articles/{article}/comments', [CommentController::class, 'store']);
+
+    // مسارات الإعلانات (خاصة بالـ Admin فقط -> ترجع 403 للمستخدم العادي)
+    Route::middleware(['role:admin'])->group(function () {
+        Route::apiResource('admin/ads', AdvertisementController::class)->except(['index']);
+    });
+
+    // مسارات إدارة التعليقات (للأدمن، المحرر، والمشرف)
+    Route::middleware(['role:admin|editor|moderator'])->group(function () {
+        Route::patch('comments/{comment}/status', [CommentController::class, 'updateStatus']);
+        Route::match(['put', 'patch'], 'comments/{comment}', [CommentController::class, 'update']);
+        Route::delete('comments/{comment}', [CommentController::class, 'destroy']);
+    });
+    });

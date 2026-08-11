@@ -7,23 +7,24 @@ use App\Models\Advertisement;
 use App\Models\Media; // في حال كان لديكِ موديل للميديا
 use App\Http\Requests\StoreAdvertisementRequest;
 use App\Http\Requests\UpdateAdvertisementRequest;
+use App\Http\Resources\AdvertisementResource;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class AdvertisementController extends Controller
 {
-    /**
+   /**
      * عرض جميع الإعلانات
      */
     public function index()
     {
-        $advertisements = Advertisement::with('image')->latest()->get();
+        // يفضل استخدام paginate بدلاً من get() إذا كان عدد الإعلانات كبيراً
+        $advertisements = Advertisement::with('image')->latest()->paginate(10);
 
-        return response()->json([
-            'status' => true,
-            'data'   => $advertisements
-        ], 200);
+        // استخدام الـ Resource
+        return AdvertisementResource::collection($advertisements);
     }
 
     /**
@@ -33,10 +34,7 @@ class AdvertisementController extends Controller
     {
         $ad = Advertisement::with('image')->findOrFail($id);
 
-        return response()->json([
-            'status' => true,
-            'data'   => $ad
-        ], 200);
+        return new AdvertisementResource($ad);
     }
 
     /**
@@ -44,6 +42,8 @@ class AdvertisementController extends Controller
      */
     public function store(StoreAdvertisementRequest $request)
     {
+        Gate::authorize('manage-ads');
+
         $data = $request->validated();
 
         // 1. توليد الـ UUID إجبارياً للجدول
@@ -80,6 +80,8 @@ class AdvertisementController extends Controller
      */
     public function update(UpdateAdvertisementRequest $request, $id)
     {
+        Gate::authorize('manage-ads');
+
         $ad = Advertisement::findOrFail($id);
         $data = $request->validated();
 
@@ -111,6 +113,8 @@ class AdvertisementController extends Controller
      */
     public function destroy($id)
     {
+        Gate::authorize('manage-ads');
+
         $ad = Advertisement::findOrFail($id);
         $ad->delete();
 

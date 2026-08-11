@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 
+
 /*
 |--------------------------------------------------------------------------
 | API Routes Configuration
@@ -12,6 +13,12 @@ use App\Http\Controllers\Api\AuthController;
 
 // إدراج مسارات Breeze المصادقة الأساسية
 require __DIR__.'/auth.php';
+
+// مسارات أعضاء الفريق (التقسيم العمودي)
+require __DIR__ . '/articles_api.php';
+require __DIR__ . '/ads_comments_api.php';
+require __DIR__ . '/admin_settings_api.php';
+require __DIR__ . '/newsletter_api.php';
 
 // 1. مسارات المصادقة العامة والخاصة بـ API (عبر AuthController)
 Route::post('/register', [AuthController::class, 'register']);

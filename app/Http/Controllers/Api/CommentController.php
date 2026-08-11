@@ -7,6 +7,8 @@ use App\Models\Comment;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreCommentRequest;
 use App\Http\Requests\UpdateCommentRequest;
+use App\Http\Resources\CommentResource;
+use Illuminate\Support\Facades\Gate;
 
 class CommentController extends Controller
 {
@@ -15,10 +17,8 @@ class CommentController extends Controller
     {
         $comments = Comment::with(['user', 'article'])->latest()->paginate(15);
         
-        return response()->json([
-            'status' => true,
-            'data'   => $comments
-        ], 200);
+        // استخدام الـ Resource بدلاً من الاستجابة الخام
+        return CommentResource::collection($comments);
     }
 
     // 2. عرض تفاصيل تعليق معَيّن
@@ -26,10 +26,8 @@ class CommentController extends Controller
     {
         $comment = Comment::with(['user', 'article'])->findOrFail($id);
 
-        return response()->json([
-            'status' => true,
-            'data'   => $comment
-        ], 200);
+        // استخدام الـ Resource لعنصر واحد
+        return new CommentResource($comment);
     }
 
     /**
@@ -58,10 +56,12 @@ class CommentController extends Controller
     }
 
     /**
-     * 4. تحديث تعليق موجود أو تغيير حالته عبر UpdateCommentRequest (Validation Only).
+     * تحديث التعليق بشكل عام
      */
     public function update(UpdateCommentRequest $request, $id)
     {
+        Gate::authorize('approve-comment');
+        
         $comment = Comment::findOrFail($id);
         $validatedData = $request->validated();
 
@@ -74,9 +74,19 @@ class CommentController extends Controller
         ], 200);
     }
 
+    /**
+     * تحديث حالة التعليق (توجيهها مباشرة لدالة update أو معالجتها)
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        return $this->update($request, $id);
+    }
+
     // 5. حذف تعليق
     public function destroy($id)
     {
+        Gate::authorize('delete-comment');
+        
         $comment = Comment::findOrFail($id);
         $comment->delete();
 

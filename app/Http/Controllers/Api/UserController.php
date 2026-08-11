@@ -10,6 +10,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Models\Role;
+use Illuminate\Validation\Rule;
+use App\Http\Requests\ChangeUserRoleRequest;
+use App\Http\Requests\ChangeUserStatusRequest;
 
 class UserController extends Controller
 {
@@ -193,4 +197,63 @@ class UserController extends Controller
             'message' => 'تم حذف المستخدم بنجاح',
         ], 200);
     }
+/**
+ * تغيير دور المستخدم.
+ * PATCH /api/users/{user}/role
+ */
+public function changeRole(ChangeUserRoleRequest $request, User $user)
+{
+    $validated = $request->validated();
+
+    $role = Role::findOrFail($validated['role_id']);
+
+    DB::transaction(function () use ($user, $role) {
+        $user->update([
+            'role_id'    => $role->id,
+            'updated_by' => auth()->id(),
+        ]);
+
+        $user->syncRoles([$role->name]);
+    });
+
+    return response()->json([
+        'status'  => true,
+        'message' => 'تم تغيير دور المستخدم بنجاح.',
+        'data'    => $user->fresh()->load(['role', 'roles']),
+    ], 200);
+}
+
+/**
+ * تغيير حالة حساب المستخدم.
+ * PATCH /api/users/{user}/status
+ */
+public function changeStatus(ChangeUserStatusRequest $request, User $user)
+{
+    $validated = $request->validated();
+
+    if (
+        $user->is(auth()->user())
+        && $validated['status'] === 'suspended'
+    ) {
+        return response()->json([
+            'status'  => false,
+            'message' => 'لا يمكنك تعليق حسابك الحالي.',
+        ], 422);
+    }
+
+    $user->update([
+        'status'     => $validated['status'],
+        'updated_by' => auth()->id(),
+    ]);
+
+    if ($validated['status'] === 'suspended') {
+        $user->tokens()->delete();
+    }
+
+    return response()->json([
+        'status'  => true,
+        'message' => 'تم تحديث حالة حساب المستخدم بنجاح.',
+        'data'    => $user->fresh()->load('role'),
+    ], 200);
+}
 }

@@ -127,10 +127,11 @@ class AuthController extends Controller
             ->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => [__('The provided credentials do not match our records.')],
-            ]);
-        }
+    return response()->json([
+        'status'  => false,
+        'message' => __('The provided credentials do not match our records.'),
+    ], 401);
+}
 
         if ($user->status === 'inactive' || $user->status === 'suspended') {
             return response()->json([
