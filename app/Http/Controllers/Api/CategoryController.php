@@ -17,7 +17,10 @@ class CategoryController extends Controller
     // عرض كل التصنيفات باستخدام CategoryResource (GET /api/categories)
     public function index()
     {
-        $categories = Category::where('is_active', true)->latest()->paginate(10);
+        $categories = Category::with('image')
+    ->where('status', 'active')
+    ->latest()
+    ->paginate(10);
 
         return response()->json([
             'status' => true,
