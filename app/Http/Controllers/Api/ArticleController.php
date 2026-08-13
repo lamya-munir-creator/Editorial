@@ -14,59 +14,67 @@ use Illuminate\Support\Str;
 
 class ArticleController extends Controller
 {
-    public function index(Request $request)
-    {
-        $query = Article::with(['category', 'tags', 'author', 'featuredImage']);
+   public function index(Request $request)
+{
+    $query = Article::with(['category', 'tags', 'author', 'featuredImage']);
 
-        // 1. البحث النصي بالكلمات المفتاحية في العنوان والمحتوى والملخص
-        if ($request->filled('q')) {
-            $search = $request->input('q');
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('excerpt', 'like', "%{$search}%")
-                  ->orWhere('content', 'like', "%{$search}%");
-            });
-        }
+    // 1. البحث النصي
+    if ($request->filled('q')) {
+        $search = $request->input('q');
 
-        // 2. الفلترة حسب Slug التصنيف
-        if ($request->filled('category_slug')) {
-            $query->whereHas('category', function ($q) use ($request) {
-                $q->where('slug', $request->input('category_slug'));
-            });
-        }
-
-        // 3. الفلترة حسب Slug الكاتب
-        if ($request->filled('author_slug')) {
-            $query->whereHas('author', function ($q) use ($request) {
-                $q->where('slug', $request->input('author_slug'));
-            });
-        }
-
-        // 4. الفلترة حسب Slug الوسم
-        if ($request->filled('tag_slug')) {
-            $query->whereHas('tags', function ($q) use ($request) {
-                $q->where('slug', $request->input('tag_slug'));
-            });
-        }
-
-        // 5. الفلترة حسب المقالات المميزة فقط
-        if ($request->boolean('featured')) {
-            $query->where('is_featured', true);
-        }
-
-        $articles = $query->latest('published_at')->paginate($request->input('per_page', 10));
-
-        return response()->json([
-            'status' => true,
-            'data'   => ArticleResource::collection($articles),
-            'meta'   => [
-                'current_page' => $articles->currentPage(),
-                'last_page'    => $articles->lastPage(),
-                'per_page'     => $articles->perPage(),
-                'total'        => $articles->total(),
-            ]
-        ], 200);
+        $query->where(function ($q) use ($search) {
+            $q->where('title', 'like', "%{$search}%")
+              ->orWhere('excerpt', 'like', "%{$search}%")
+              ->orWhere('content', 'like', "%{$search}%");
+        });
     }
+
+    // 2. حسب التصنيف
+    if ($request->filled('category_slug')) {
+        $query->whereHas('category', function ($q) use ($request) {
+            $q->where('slug', $request->input('category_slug'));
+        });
+    }
+
+    // 3. حسب الكاتب
+    if ($request->filled('author_slug')) {
+        $query->whereHas('author', function ($q) use ($request) {
+            $q->where('slug', $request->input('author_slug'));
+        });
+    }
+
+    // 4. حسب الوسم
+    if ($request->filled('tag_slug')) {
+        $query->whereHas('tags', function ($q) use ($request) {
+            $q->where('slug', $request->input('tag_slug'));
+        });
+    }
+
+    // 5. حسب الحالة
+    if ($request->filled('status')) {
+        $query->where('status', $request->input('status'));
+    }
+
+    // 6. المقالات المميزة فقط
+    if ($request->boolean('featured')) {
+        $query->where('is_featured', true);
+    }
+
+    $articles = $query
+        ->latest('published_at')
+        ->paginate($request->input('per_page', 10));
+
+    return response()->json([
+        'status' => true,
+        'data'   => ArticleResource::collection($articles),
+        'meta'   => [
+            'current_page' => $articles->currentPage(),
+            'last_page'    => $articles->lastPage(),
+            'per_page'     => $articles->perPage(),
+            'total'        => $articles->total(),
+        ]
+    ], 200);
+}
 
     /**
      * إنشاء وحفظ مقال جديد مع التحقق عبر StoreArticleRequest ومعالجة رفع صورة الغلاف.

@@ -15,24 +15,30 @@ use Illuminate\Support\Str;
 class CategoryController extends Controller
 {
     // عرض كل التصنيفات باستخدام CategoryResource (GET /api/categories)
-    public function index()
-    {
-        $categories = Category::with('image')
-    ->where('status', 'active')
-    ->latest()
-    ->paginate(10);
+ public function index(Request $request)
+{
+    $query = Category::with('image');
 
-        return response()->json([
-            'status' => true,
-            'data'   => CategoryResource::collection($categories),
-            'meta'   => [
-                'current_page' => $categories->currentPage(),
-                'last_page'    => $categories->lastPage(),
-                'per_page'     => $categories->perPage(),
-                'total'        => $categories->total(),
-            ],
-        ], 200);
+    // الفلترة حسب الحالة
+    if ($request->filled('status')) {
+        $query->where('status', $request->input('status'));
     }
+
+    $categories = $query
+        ->latest()
+        ->paginate($request->input('per_page', 10));
+
+    return response()->json([
+        'status' => true,
+        'data'   => CategoryResource::collection($categories),
+        'meta'   => [
+            'current_page' => $categories->currentPage(),
+            'last_page'    => $categories->lastPage(),
+            'per_page'     => $categories->perPage(),
+            'total'        => $categories->total(),
+        ],
+    ], 200);
+}
 
     // إضافة تصنيف جديد (POST /api/categories)
     public function store(StoreCategoryRequest $request)
