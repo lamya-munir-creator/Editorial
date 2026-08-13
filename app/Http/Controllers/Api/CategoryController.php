@@ -42,21 +42,45 @@ class CategoryController extends Controller
 
     // إضافة تصنيف جديد (POST /api/categories)
     public function store(StoreCategoryRequest $request)
-    {
-        $validatedData = $request->validated();
+{
+    $validatedData = $request->validated();
 
-        $validatedData['slug'] = Str::slug($validatedData['name']);
-        $validatedData['created_by'] = auth()->id() ?? 1;
+    $validatedData['slug'] = Str::slug($validatedData['name']);
+    $validatedData['created_by'] = auth()->id() ?? 1;
 
-        $category = Category::create($validatedData);
+    if ($request->hasFile('image')) {
+        $file = $request->file('image');
+        $path = $file->store('categories', 'public');
 
-        return response()->json([
-            'status'  => true,
-            'message' => __('Category created successfully'),
-            'data'    => new CategoryResource($category)
-        ], 201);
+        $media = \App\Models\Media::create([
+            'uuid'          => (string) Str::uuid(),
+            'uploaded_by'   => auth()->id() ?? 1,
+            'file_name'     => basename($path),
+            'original_name' => $file->getClientOriginalName(),
+            'disk'          => 'public',
+            'path'          => $path,
+            'webp_path'     => $path,
+            'mime_type'     => $file->getClientMimeType(),
+            'extension'     => $file->getClientOriginalExtension(),
+            'file_size'     => $file->getSize(),
+            'type'          => 'image',
+            'visibility'    => 'public',
+            'created_by'    => auth()->id() ?? 1,
+        ]);
+
+        $validatedData['image_id'] = $media->id;
     }
 
+    unset($validatedData['image']);
+
+    $category = Category::create($validatedData);
+
+    return response()->json([
+        'status'  => true,
+        'message' => __('Category created successfully'),
+        'data'    => new CategoryResource($category->load('image'))
+    ], 201);
+}
     // عرض تصنيف محدد عبر الـ Route Model Binding
     public function show(Category $category)
     {
@@ -108,12 +132,38 @@ class CategoryController extends Controller
 
         $validatedData['updated_by'] = auth()->id() ?? 1;
 
-        $category->update($validatedData);
+        // معالجة رفع الصورة الجديدة وربطها بجدول الـ Media
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $path = $file->store('categories', 'public');
+
+            $media = \App\Models\Media::create([
+                'uuid'          => (string) Str::uuid(),
+                'uploaded_by'   => auth()->id() ?? 1,
+                'file_name'     => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk'          => 'public',
+                'path'          => $path,
+                'webp_path'     => $path,
+                'mime_type'     => $file->getClientMimeType(),
+                'extension'     => $file->getClientOriginalExtension(),
+                'file_size'     => $file->getSize(),
+                'type'          => 'image',
+                'visibility'    => 'public',
+                'created_by'    => auth()->id() ?? 1,
+            ]);
+
+            // تخزين الـ id في عمود image_id المطابق لقاعدة البيانات
+            $validatedData['image_id'] = $media->id;
+        }
+
+        $category->fill($validatedData);
+        $category->save();
 
         return response()->json([
             'status'  => true,
             'message' => __('Category updated successfully'),
-            'data'    => new CategoryResource($category)
+            'data'    => new CategoryResource($category->load('image'))
         ], 200);
     }
 

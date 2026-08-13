@@ -38,26 +38,16 @@ class ArticleResource extends JsonResource
 
             'featured_image' => $this->featuredImage ? [
                 'id' => $this->featuredImage->id,
-
-                'url' => url(
-                    Storage::disk($this->featuredImage->disk)
-                        ->url(
-                            $this->featuredImage->webp_path
-                            ?? $this->featuredImage->path
-                        )
-                ),
-
+                'url' => asset('storage/' . ($this->featuredImage->webp_path ?? $this->featuredImage->path)),
                 'alt_text' => $this->featuredImage->alt_text,
             ] : null,
 
             'author' => $this->author ? [
                 'id'         => $this->author->id,
-                'name'       => $this->author->display_name ?? $this->author->name,
+                'name'       => $this->author->display_name ?? $this->author->name ?? 'غير معروف',
                 'slug'       => $this->author->slug,
-                'job_title'  => $this->author->job_title,
-                'biography'  => $this->author->biography ?? $this->author->bio,
             ] : null,
-
+            
             'created_at' => $this->created_at?->toDateTimeString(),
 
             'schema_markup' => [
@@ -68,16 +58,10 @@ class ArticleResource extends JsonResource
 
                 'image' => $this->featuredImage
                     ? [
-                        url(
-                            Storage::disk($this->featuredImage->disk)
-                                ->url(
-                                    $this->featuredImage->webp_path
-                                    ?? $this->featuredImage->path
-                                )
-                        )
+                        asset('storage/' . ($this->featuredImage->webp_path ?? $this->featuredImage->path))
                     ]
                     : [],
-
+                    
                 'datePublished' => $this->published_at
                     ? $this->published_at->toAtomString()
                     : $this->created_at?->toAtomString(),
