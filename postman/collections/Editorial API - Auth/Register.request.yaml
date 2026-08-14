@@ -1,4 +1,5 @@
 $kind: http-request
+name: Register
 url: http://127.0.0.1:8000/api/register
 method: POST
 headers:
@@ -15,19 +16,19 @@ body:
   type: json
   content: "{\r
 
-    \    \"first_name\": \"أحمد\",\r
+    \    \"first_name\": \"اختبار\",\r
 
-    \    \"last_name\": \"محمد\",\r
+    \    \"last_name\": \"كاتب\",\r
 
-    \    \"username\": \"ahmed_tester\",\r
+    \    \"username\": \"auther_tester\",\r
 
-    \    \"email\": \"ahmed@example.com\",\r
+    \    \"email\": \"testauther@example.com\",\r
 
     \    \"password\": \"12345678\",\r
 
     \    \"password_confirmation\": \"12345678\",\r
 
-    \    \"role_id\": 4\r
+    \    \"role_id\": 1\r
 
     }\r\n"
 order: 1000

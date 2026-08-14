@@ -109,6 +109,8 @@ class AuthorController extends Controller
     public function store(StoreAuthorRequest $request)
     {
         $validatedData = $request->validated();
+$targetUserId = $validatedData['user_id'];
+
 
         $author = DB::transaction(function () use ($request, $validatedData) {
             $userId = auth()->id() ?? 1;

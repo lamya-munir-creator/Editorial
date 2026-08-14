@@ -15,11 +15,12 @@ class StoreAuthorRequest extends FormRequest
    public function rules(): array
 {
     return [
-        'user_id' => [
-            'nullable',
-            'integer',
-            'exists:users,id',
-        ],
+       'user_id' => [
+    'required',
+    'integer',
+    'exists:users,id',
+    Rule::unique('authors', 'user_id'),
+],
 
         'avatar' => [
             'nullable',

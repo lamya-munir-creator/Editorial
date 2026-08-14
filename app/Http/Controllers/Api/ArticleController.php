@@ -59,7 +59,34 @@ class ArticleController extends Controller
     if ($request->boolean('featured')) {
         $query->where('is_featured', true);
     }
+// 7. مقالات الكاتب الحالي
+if ($request->boolean('mine')) {
+    $user = auth()->user();
 
+    if (!$user) {
+        return response()->json([
+            'status' => false,
+            'message' => 'يجب تسجيل الدخول أولاً.'
+        ], 401);
+    }
+
+    $author = $user->authorProfile;
+
+    if (!$author) {
+        return response()->json([
+            'status' => true,
+            'data' => [],
+            'meta' => [
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => $request->input('per_page', 10),
+                'total' => 0,
+            ]
+        ], 200);
+    }
+
+    $query->where('author_id', $author->id);
+}
     $articles = $query
         ->latest('published_at')
         ->paginate($request->input('per_page', 10));
@@ -89,24 +116,17 @@ class ArticleController extends Controller
 
         // 2. إيجاد أو إنشاء سجل الكاتب بجدول authors للربط الصحيح مع قاعدة البيانات
         $user = auth()->user();
-        $author = $user?->authorProfile;
+$author = $user?->authorProfile;
 
-        if (! $author && $user) {
-            $author = Author::firstOrCreate(
-                ['user_id' => $user->id],
-                [
-                    'uuid'         => (string) Str::uuid(),
-                    'display_name' => $user->full_name ?: $user->username,
-                    'slug'         => Str::slug($user->username ?: $user->first_name) . '-' . Str::random(4),
-                    'gender'       => 'male',
-                    'status'       => 'active',
-                    'created_by'   => $user->id,
-                ]
-            );
-        }
+if (!$author) {
+    return response()->json([
+        'status' => false,
+        'message' => 'لا يوجد ملف كاتب معتمد لهذا الحساب.'
+    ], 403);
+}
 
-        $validated['author_id']  = $author?->id ?? 1;
-        $validated['created_by'] = $user?->id ?? 1;
+       $validated['author_id'] = $author?->id ?? 1;
+$validated['created_by'] = $user?->id ?? 1;
         $validated['slug']       = Str::slug($request->title);
         $validated['published_at'] = ($validated['status'] === 'published') ? now() : null;
 
