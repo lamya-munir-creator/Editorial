@@ -21,10 +21,11 @@ class StoreCategoryRequest extends FormRequest
                 'exists:categories,id',
             ],
 
-            'image_id' => [
-                'nullable',
-                'integer',
-                'exists:media,id',
+            'image' => [
+               'nullable',
+               'image',
+               'mimes:jpeg,png,jpg,webp',
+               'max:10240',
             ],
 
             'name' => [
