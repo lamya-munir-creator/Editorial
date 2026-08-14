@@ -87,9 +87,33 @@ if ($request->boolean('mine')) {
 
     $query->where('author_id', $author->id);
 }
-    $articles = $query
-        ->latest('published_at')
-        ->paginate($request->input('per_page', 10));
+// 8. الترتيب
+$sort = $request->input('sort', 'latest');
+
+switch ($sort) {
+    case 'popular':
+        $query->orderByDesc('views_count');
+        break;
+
+    case 'alphabetical':
+        $query->orderBy('title', 'asc');
+        break;
+
+    case 'oldest':
+        $query->orderBy('published_at', 'asc');
+        break;
+
+    case 'latest':
+    default:
+        $query->orderByDesc('published_at');
+        break;
+}
+
+// 9. Pagination
+$articles = $query->paginate(
+    $request->input('per_page', 10)
+);
+    
 
     return response()->json([
         'status' => true,

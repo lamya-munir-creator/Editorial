@@ -105,4 +105,9 @@ class Article extends Model
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 }
