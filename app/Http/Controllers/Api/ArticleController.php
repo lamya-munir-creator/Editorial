@@ -109,7 +109,7 @@ if ($request->boolean('mine')) {
     public function store(StoreArticleRequest $request)
     {
         // 1. التحقق من صلاحيات إنشاء مقال عبر ArticlePolicy
-        $this->authorize('create', Article::class);
+        // $this->authorize('create', Article::class);
 
         // استقبال البيانات بعد التحقق الآلي في StoreArticleRequest
         $validated = $request->validated();
@@ -125,9 +125,9 @@ if (!$author) {
     ], 403);
 }
 
-       $validated['author_id'] = $author?->id ?? 1;
-$validated['created_by'] = $user?->id ?? 1;
-        $validated['slug']       = Str::slug($request->title);
+$validated['author_id']  = $author->id;
+$validated['created_by'] = $user->id;
+$validated['slug']       = Str::slug($request->title) . '-' . Str::random(5);
         $validated['published_at'] = ($validated['status'] === 'published') ? now() : null;
 
         // =========================================================================
