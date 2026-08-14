@@ -110,6 +110,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Comment::class);
     }
+   public function authorApplications(): HasMany
+{
+    return $this->hasMany(AuthorApplication::class);
+}
 
     public function handledContactMessages(): HasMany
     {

@@ -1,0 +1,11 @@
+$kind: http-request
+name: Admin - Author Applications
+url: http://127.0.0.1:8000/api/author-applications
+method: GET
+headers:
+  Accept: " application/json"
+auth:
+  type: bearer
+  credentials:
+    token: 80|BxKlwDSPyOsY9zPWOF5q0Q1hA3OS0vpk6t4UHFkk023080d7
+order: 4503341745290366

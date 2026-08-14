@@ -1,1 +1,6 @@
 $kind: collection
+name: Editorial API - Auth
+variables:
+  - key: bearer_token_16lq
+    secret: true
+    disabled: false

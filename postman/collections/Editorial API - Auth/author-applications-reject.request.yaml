@@ -1,0 +1,11 @@
+$kind: http-request
+name: author-applications-reject
+url: http://127.0.0.1:8000/api/author-applications/3/reject
+method: PATCH
+headers:
+  Accept: " application/json"
+auth:
+  type: bearer
+  credentials:
+    token: 83|ItWaKR1RibMCxaMAn9VWG8WpnQDDJigqmQVWqtTJa7ff720b
+order: 4503550487902513
