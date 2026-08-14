@@ -1,0 +1,25 @@
+$kind: http-request
+name: add-Author Profile
+url: http://127.0.0.1:8000/api/authors
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \  \"display_name\": \"كاتب تجريبي\",\r
+
+    \  \"slug\": \"كاتب-تجريبي\",\r
+
+    \  \"bio\": \"كاتب يهتم بالمحتوى التقني والثقافي.\",\r
+
+    \  \"job_title\": \"كاتب ومحرر\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: 97|lQdivJQXJGAsxHesHAX7KsgqETfyIXhIOCEJ5O9Ac5764b94
+order: 4503599545019508
