@@ -1,0 +1,11 @@
+$kind: http-request
+name: author-profile
+url: http://127.0.0.1:8000/api/authors/me
+method: GET
+headers:
+  Accept: " application/json"
+auth:
+  type: bearer
+  credentials:
+    token: 97|lQdivJQXJGAsxHesHAX7KsgqETfyIXhIOCEJ5O9Ac5764b94
+order: 4503596134243195
