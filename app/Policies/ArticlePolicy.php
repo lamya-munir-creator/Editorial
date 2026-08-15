@@ -8,7 +8,7 @@ use App\Models\User;
 class ArticlePolicy
 {
     /**
-     * إمكانية استعراض قائمة المقالات (عامة للجميع)
+     * عرض قائمة المقالات العامة.
      */
     public function viewAny(?User $user): bool
     {
@@ -16,7 +16,7 @@ class ArticlePolicy
     }
 
     /**
-     * إمكانية استعراض مقال محدد (عامة للجميع)
+     * عرض مقال عام.
      */
     public function view(?User $user, Article $article): bool
     {
@@ -24,8 +24,10 @@ class ArticlePolicy
     }
 
     /**
-     * إمكانية إنشاء مقال جديد
-     * يتطلب صلاحية 'create-article' (المحرر، الأدمن، والكاتب)
+     * إنشاء مقال.
+     *
+     * الكاتب المعتمد أو المحرر أو الأدمن
+     * يحتاج إلى صلاحية create-article.
      */
     public function create(User $user): bool
     {
@@ -33,10 +35,10 @@ class ArticlePolicy
     }
 
     /**
-     * إمكانية تعديل المقال
-     * - يتطلب صلاحية 'edit-article'
-     * - المحرر والمدير يمكنهما تعديل أي مقال
-     * - الكاتب يمكنه تعديل المقال الخاص به فقط
+     * تعديل المقال.
+     *
+     * الأدمن والمحرر يستطيعان تعديل أي مقال.
+     * الكاتب يستطيع تعديل مقاله فقط.
      */
     public function update(User $user, Article $article): bool
     {
@@ -44,20 +46,39 @@ class ArticlePolicy
             return false;
         }
 
+        // الأدمن والمحرر يستطيعان تعديل أي مقال
         if ($user->hasAnyRole(['admin', 'editor'])) {
             return true;
         }
 
-        // الكاتب يتفقد ملكية المقال عبر created_by أو ملف الكاتب المربوط
-        return $article->created_by === $user->id 
-            || ($article->author && $article->author->user_id === $user->id);
+        // الكاتب يستطيع تعديل مقاله فقط
+        $author = $user->authorProfile;
+
+        if (! $author) {
+            return false;
+        }
+
+        return (int) $article->author_id === (int) $author->id;
+    }
+public function manage(User $user, Article $article): bool
+{
+    if ($user->hasAnyRole(['admin', 'editor'])) {
+        return true;
     }
 
+    $author = $user->authorProfile;
+
+    if (! $author) {
+        return false;
+    }
+
+    return (int) $article->author_id === (int) $author->id;
+}
     /**
-     * إمكانية حذف المقال
-     * - يتطلب صلاحية 'delete-article'
-     * - المحرر والمدير يمكنهما حذف أي مقال
-     * - الكاتب يمكنه حذف مقاله الخاص فقط
+     * حذف المقال.
+     *
+     * الأدمن والمحرر يستطيعان حذف أي مقال.
+     * الكاتب يستطيع حذف مقاله فقط.
      */
     public function delete(User $user, Article $article): bool
     {
@@ -65,17 +86,25 @@ class ArticlePolicy
             return false;
         }
 
+        // الأدمن والمحرر يستطيعان حذف أي مقال
         if ($user->hasAnyRole(['admin', 'editor'])) {
             return true;
         }
 
-        return $article->created_by === $user->id 
-            || ($article->author && $article->author->user_id === $user->id);
+        // الكاتب يستطيع حذف مقاله فقط
+        $author = $user->authorProfile;
+
+        if (! $author) {
+            return false;
+        }
+
+        return (int) $article->author_id === (int) $author->id;
     }
 
     /**
-     * إمكانية نشر المقال مباشرة
-     * يتطلب صلاحية 'publish-article' (المحرر والمدير فقط)
+     * نشر المقال مباشرة.
+     *
+     * الأدمن والمحرر فقط حسب صلاحية publish-article.
      */
     public function publish(User $user): bool
     {
