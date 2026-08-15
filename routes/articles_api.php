@@ -45,9 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('tags', TagController::class)->except(['index', 'show']);
     });
 
-    // إدارة المقالات (تخضع لسياسة الملكية والصلاحيات في ArticlePolicy)
-    Route::apiResource('articles', ArticleController::class)->except(['index', 'show']);
-
+   
     // إدارة الصفحات والوسائط
     Route::apiResource('pages', PageController::class)->except(['index', 'show']);
     Route::apiResource('media', MediaController::class)->except(['index', 'show']);
