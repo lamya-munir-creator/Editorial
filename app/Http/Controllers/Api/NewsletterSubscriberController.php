@@ -4,24 +4,32 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewsletterSubscriber;
-use App\Http\Resources\NewsletterResource; // 1. تضمين الـ Resource
+use App\Models\ActivityLog;
+use App\Http\Resources\NewsletterResource;
 use App\Http\Requests\StoreNewsletterSubscriberRequest;
 use App\Http\Requests\UpdateNewsletterSubscriberRequest;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Gate; // 2. تضمين الـ Gate للصلاحيات
+use Illuminate\Support\Facades\Gate;
 
 class NewsletterSubscriberController extends Controller
 {
+    private function getActionPrefix(): string
+    {
+        $user = auth()->user();
+        $firstName = $user ? $user->first_name : '';
+        $isFemale = $firstName && (mb_substr($firstName, -1) === 'ة' || mb_substr($firstName, -1) === 'ه');
+        return $isFemale ? 'قامت بـ' : 'قام بـ';
+    }
+
     /**
      * 1. عرض جميع المشتركين (خاص بالأدمن)
      */
     public function index()
     {
-        Gate::authorize('manage-settings'); // حماية الدالة
+        Gate::authorize('manage-settings');
 
         $subscribers = NewsletterSubscriber::latest()->paginate(15);
 
-        // إرجاع البيانات منسقة عبر Resource بدلاً من الاستجابة الخام
         return NewsletterResource::collection($subscribers);
     }
 
@@ -30,7 +38,7 @@ class NewsletterSubscriberController extends Controller
      */
     public function show($id)
     {
-        Gate::authorize('manage-settings'); // حماية الدالة
+        Gate::authorize('manage-settings');
 
         $subscriber = NewsletterSubscriber::findOrFail($id);
 
@@ -50,6 +58,15 @@ class NewsletterSubscriberController extends Controller
 
         $subscriber = NewsletterSubscriber::create($validatedData);
 
+        // تسجيل النشاط (إذا كان المسجل مستخدماً مسجلاً دخوله أو زاراً)
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? null,
+            'action_type' => 'newsletter_subscribe',
+            'action_label' => 'اشتراك جديد في النشرة البريدية',
+            'target_name' => $subscriber->email,
+            'target_url' => '/subscribers',
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => __('تم الاشتراك في النشرة البريدية بنجاح.'),
@@ -62,7 +79,7 @@ class NewsletterSubscriberController extends Controller
      */
     public function update(UpdateNewsletterSubscriberRequest $request, $id)
     {
-        Gate::authorize('manage-settings'); // حماية الدالة
+        Gate::authorize('manage-settings');
 
         $subscriber = NewsletterSubscriber::findOrFail($id);
         $validatedData = $request->validated();
@@ -74,6 +91,14 @@ class NewsletterSubscriberController extends Controller
         }
 
         $subscriber->update($validatedData);
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'update_subscriber',
+            'action_label' => $this->getActionPrefix() . 'تعديل بيانات مشترك النشرة',
+            'target_name' => $subscriber->email,
+            'target_url' => '/subscribers',
+        ]);
 
         return response()->json([
             'status'  => true,
@@ -94,6 +119,14 @@ class NewsletterSubscriberController extends Controller
             'unsubscribed_at' => now(),
         ]);
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? null,
+            'action_type' => 'unsubscribe',
+            'action_label' => 'إلغاء الاشتراك من النشرة البريدية',
+            'target_name' => $subscriber->email,
+            'target_url' => null,
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => __('تم إلغاء الاشتراك بنجاح.')
@@ -105,10 +138,19 @@ class NewsletterSubscriberController extends Controller
      */
     public function destroy($id)
     {
-        Gate::authorize('manage-settings'); // حماية الدالة
+        Gate::authorize('manage-settings');
 
         $subscriber = NewsletterSubscriber::findOrFail($id);
+        $email = $subscriber->email;
         $subscriber->delete();
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'delete_subscriber',
+            'action_label' => $this->getActionPrefix() . 'حذف مشترك من النشرة',
+            'target_name' => $email,
+            'target_url' => null,
+        ]);
 
         return response()->json([
             'status'  => true,
