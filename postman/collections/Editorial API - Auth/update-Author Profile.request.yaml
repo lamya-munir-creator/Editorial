@@ -1,0 +1,27 @@
+$kind: http-request
+name: update-Author Profile
+url: http://127.0.0.1:8000/api/authors/me
+method: PATCH
+headers:
+  Accept: application/json
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \  \"display_name\": \"كاتب تجريبي محدث\",\r
+
+    \  \"biography\": \"نبذة جديدة بعد تعديل البروفايل.\",\r
+
+    \  \"job_title\": \"كاتب محتوى أول\",\r
+
+    \  \"website\": \"https://example.com\",\r
+
+    \  \"twitter\":\"http://www.pagac.com/\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: 103|7TqzHwyWExptyaHjx3FoNY9QDwI2EKNGvyF8xDFW74335fbb
+order: 4503599569420482

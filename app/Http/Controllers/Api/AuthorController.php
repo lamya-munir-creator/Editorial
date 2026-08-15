@@ -219,7 +219,106 @@ class AuthorController extends Controller
             'data' => $author->fresh()->load('avatar'),
         ], 200);
     }
+/**
+     * جلب بروفايل الكاتب الخاص بالمستخدم المسجل دخوله حاليًا.
+     * GET /api/authors/me
+     */
+    public function me(Request $request)
+    {
+        $author = Author::with('avatar')
+            ->withCount('articles')
+            ->where('user_id', $request->user()->id)
+            ->first();
 
+        if (! $author) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'لا يوجد لديك بروفايل كاتب بعد.',
+            ], 404);
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم جلب ملفك الشخصي كـ كاتب بنجاح',
+            'data'    => $author,
+        ], 200);
+    }
+
+    /**
+     * تحديث بروفايل الكاتب الخاص بالمستخدم المسجل دخوله حاليًا.
+     * (لا يُسمح بتعديل user_id أو status عبر هذا المسار الذاتي - صلاحيات إدارية فقط)
+     * PATCH /api/authors/me
+     */
+    public function updateMe(UpdateAuthorRequest $request)
+    {
+        $user = $request->user();
+
+        $author = Author::where('user_id', $user->id)->first();
+
+        if (! $author) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'لا يوجد لديك بروفايل كاتب بعد.',
+            ], 404);
+        }
+
+        $validatedData = $request->validated();
+
+        // حماية: لا يُعدَّل ربط الحساب أو حالة التفعيل من قِبل الكاتب نفسه
+        unset($validatedData['user_id'], $validatedData['status']);
+
+        $author = DB::transaction(function () use ($request, $validatedData, $author, $user) {
+            if ($request->hasFile('avatar')) {
+                $file = $request->file('avatar');
+
+                $path = $file->store('authors', 'public');
+
+                $media = Media::create([
+                    'uuid' => Str::uuid(),
+                    'uploaded_by' => $user->id,
+                    'file_name' => basename($path),
+                    'original_name' => $file->getClientOriginalName(),
+                    'disk' => 'public',
+                    'path' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'extension' => $file->getClientOriginalExtension(),
+                    'file_size' => $file->getSize(),
+                    'width' => null,
+                    'height' => null,
+                    'duration' => null,
+                    'alt_text' => $validatedData['display_name'] ?? $author->display_name,
+                    'caption' => null,
+                    'type' => 'image',
+                    'visibility' => 'public',
+                    'created_by' => $user->id,
+                    'updated_by' => null,
+                ]);
+
+                $validatedData['avatar_id'] = $media->id;
+            }
+
+            unset($validatedData['avatar']);
+
+            $validatedData['updated_by'] = $user->id;
+
+            if (isset($validatedData['display_name'])) {
+                $validatedData['slug'] =
+                    Str::slug($validatedData['display_name'])
+                    . '-'
+                    . Str::random(6);
+            }
+
+            $author->update($validatedData);
+
+            return $author;
+        });
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم تحديث ملفك الشخصي كـ كاتب بنجاح',
+            'data'    => $author->fresh()->load('avatar'),
+        ], 200);
+    }
     /**
      * حذف كاتب
      */
@@ -233,4 +332,5 @@ class AuthorController extends Controller
             'message' => 'تم حذف الكاتِب بنجاح'
         ], 200);
     }
+    
 }
