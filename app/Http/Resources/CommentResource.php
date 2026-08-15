@@ -11,13 +11,38 @@ class CommentResource extends JsonResource
     {
         return [
             'id' => $this->id,
+
+            'uuid' => $this->uuid,
+
             'content' => $this->content,
+
             'status' => $this->status,
-            'user' => [
-                'id' => $this->user_id,
-                'name' => $this->user ? $this->user->name : 'مستخدم',
-            ],
-            'created_at' => $this->created_at ? $this->created_at->format('Y-m-d H:i') : null,
+
+            'guest_name' => $this->guest_name,
+
+            'user' => $this->user
+                ? [
+                    'id' => $this->user->id,
+                    'first_name' => $this->user->first_name,
+                    'last_name' => $this->user->last_name,
+                    'username' => $this->user->username,
+                    'name' => $this->user->full_name
+                        ?: $this->user->username,
+                    'avatar_url' => $this->user->avatar?->url,
+                ]
+                : null,
+
+            'article' => $this->article
+                ? [
+                    'id' => $this->article->id,
+                    'title' => $this->article->title,
+                    'slug' => $this->article->slug,
+                ]
+                : null,
+
+            'created_at' => $this->created_at
+                ? $this->created_at->format('Y-m-d H:i')
+                : null,
         ];
     }
 }
