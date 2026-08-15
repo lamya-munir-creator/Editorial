@@ -15,7 +15,7 @@ class CommentController extends Controller
     // 1. جلب كافة التعليقات (مع بيانات المستخدم والمقالة والصفحات)
     public function index()
     {
-        $comments = Comment::with(['user', 'article'])->latest()->paginate(15);
+        $comments = Comment::with(['user.avatar', 'article'])->latest()->paginate(15);
         
         // استخدام الـ Resource بدلاً من الاستجابة الخام
         return CommentResource::collection($comments);
