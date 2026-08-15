@@ -22,12 +22,11 @@ class AuthorController extends Controller
     {
         $search = $request->input('search');
 
-        $authors = Author::with('avatar')
+        $authors = Author::with(['avatar', 'user'])
             ->withCount('articles')
             ->when($search, function ($query, $search) {
                 return $query->where('display_name', 'like', "%{$search}%")
-                             ->orWhere('name', 'like', "%{$search}%")
-                             ->orWhere('email', 'like', "%{$search}%");
+                             ->orWhere('job_title', 'like', "%{$search}%");
             })
             ->latest()
             ->paginate(10);
@@ -107,63 +106,54 @@ class AuthorController extends Controller
      * إضافة كاتب جديد
      */
     public function store(StoreAuthorRequest $request)
-    {
-        $validatedData = $request->validated();
-$targetUserId = $validatedData['user_id'];
+{
+    $validatedData = $request->validated();
 
-
-        $author = DB::transaction(function () use ($request, $validatedData) {
-            $userId = auth()->id() ?? 1;
-
-            if ($request->hasFile('avatar')) {
-                $file = $request->file('avatar');
-
-                $path = $file->store('authors', 'public');
-
-                $media = Media::create([
-                    'uuid' => Str::uuid(),
-                    'uploaded_by' => $userId,
-                    'file_name' => basename($path),
-                    'original_name' => $file->getClientOriginalName(),
-                    'disk' => 'public',
-                    'path' => $path,
-                    'mime_type' => $file->getMimeType(),
-                    'extension' => $file->getClientOriginalExtension(),
-                    'file_size' => $file->getSize(),
-                    'width' => null,
-                    'height' => null,
-                    'duration' => null,
-                    'alt_text' => $validatedData['display_name'],
-                    'caption' => null,
-                    'type' => 'image',
-                    'visibility' => 'public',
-                    'created_by' => $userId,
-                    'updated_by' => null,
-                ]);
-
-                $validatedData['avatar_id'] = $media->id;
-            }
-
-            unset($validatedData['avatar']);
-
-            $validatedData['uuid'] = Str::uuid();
-
-            $validatedData['slug'] =
-                Str::slug($validatedData['display_name'])
-                . '-'
-                . Str::random(6);
-
-            $validatedData['created_by'] = $userId;
-
-            return Author::create($validatedData);
-        });
-
-        return response()->json([
-            'status' => true,
-            'message' => 'تم إضافة الكاتب بنجاح',
-            'data' => $author->load('avatar'),
-        ], 201);
+    // إذا لم يتم إرسال user_id، نضع له قيمة افتراضية (مثل المستخدم الحالي أو أول مستخدم)
+    if (!isset($validatedData['user_id'])) {
+        $validatedData['user_id'] = auth()->id() ?? 1;
     }
+
+    $author = DB::transaction(function () use ($request, $validatedData) {
+        $userId = auth()->id() ?? 1;
+
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+            $path = $file->store('authors', 'public');
+
+            $media = Media::create([
+                'uuid' => Str::uuid(),
+                'uploaded_by' => $userId,
+                'file_name' => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk' => 'public',
+                'path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'extension' => $file->getClientOriginalExtension(),
+                'file_size' => $file->getSize(),
+                'alt_text' => $validatedData['display_name'],
+                'type' => 'image',
+                'visibility' => 'public',
+                'created_by' => $userId,
+            ]);
+
+            $validatedData['avatar_id'] = $media->id;
+        }
+
+        unset($validatedData['avatar']);
+        $validatedData['uuid'] = Str::uuid();
+        $validatedData['slug'] = Str::slug($validatedData['display_name']) . '-' . Str::random(6);
+        $validatedData['created_by'] = $userId;
+
+        return Author::create($validatedData);
+    });
+
+    return response()->json([
+        'status' => true,
+        'message' => 'تم إضافة الكاتب بنجاح',
+        'data' => $author->load('avatar'),
+    ], 201);
+}
 
     /**
      * تحديث بيانات كاتب

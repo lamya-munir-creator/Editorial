@@ -46,3 +46,5 @@ require __DIR__.'/ads_comments_api.php';
 
 // الشخص الثالث: إعدادات النظام والمستخدمين (System Settings & RBAC Management)
 require __DIR__.'/admin_settings_api.php';
+
+require __DIR__ . '/media_api.php';
