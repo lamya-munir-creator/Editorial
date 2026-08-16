@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreCommentRequest;
 use App\Http\Requests\UpdateCommentRequest;
@@ -12,7 +13,14 @@ use Illuminate\Support\Facades\Gate;
 
 class CommentController extends Controller
 {
-    // 1. جلب كافة التعليقات (مع بيانات المستخدم والمقالة والصفحات)
+    private function getActionPrefix(): string
+    {
+        $user = auth()->user();
+        $firstName = $user ? $user->first_name : '';
+        $isFemale = $firstName && (mb_substr($firstName, -1) === 'ة' || mb_substr($firstName, -1) === 'ه');
+        return $isFemale ? 'قامت بـ' : 'قام بـ';
+    }
+
     public function index()
     {
         $comments = Comment::with(['user.avatar', 'article'])->latest()->paginate(15);
@@ -21,21 +29,14 @@ class CommentController extends Controller
         return CommentResource::collection($comments);
     }
 
-    // 2. عرض تفاصيل تعليق معَيّن
     public function show($id)
     {
         $comment = Comment::with(['user', 'article'])->findOrFail($id);
-
-        // استخدام الـ Resource لعنصر واحد
         return new CommentResource($comment);
     }
 
-    /**
-     * 3. إضافة تعليق جديد مع التحقق عبر StoreCommentRequest (Validation Only).
-     */
     public function store(StoreCommentRequest $request)
     {
-        // استقبال البيانات الموفقة عبر FormRequest
         $validatedData = $request->validated();
 
         $comment = Comment::create([
@@ -48,6 +49,14 @@ class CommentController extends Controller
             'status'      => $validatedData['status'] ?? 'pending',
         ]);
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'add_comment',
+            'action_label' => $this->getActionPrefix() . 'إضافة تعليق جديد',
+            'target_name' => \Str::limit($comment->content, 30),
+            'target_url' => '/comments',
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => __('Comment created successfully and is pending review'),
@@ -55,9 +64,6 @@ class CommentController extends Controller
         ], 201);
     }
 
-    /**
-     * تحديث التعليق بشكل عام
-     */
     public function update(UpdateCommentRequest $request, $id)
     {
         Gate::authorize('approve-comment');
@@ -67,6 +73,14 @@ class CommentController extends Controller
 
         $comment->update($validatedData);
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'edit_comment',
+            'action_label' => $this->getActionPrefix() . 'تعديل أو قبول التعليق',
+            'target_name' => \Str::limit($comment->content, 30),
+            'target_url' => '/comments',
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => __('Comment updated successfully'),
@@ -74,21 +88,26 @@ class CommentController extends Controller
         ], 200);
     }
 
-    /**
-     * تحديث حالة التعليق (توجيهها مباشرة لدالة update أو معالجتها)
-     */
     public function updateStatus(Request $request, $id)
     {
         return $this->update($request, $id);
     }
 
-    // 5. حذف تعليق
     public function destroy($id)
     {
         Gate::authorize('delete-comment');
         
         $comment = Comment::findOrFail($id);
+        $contentSnippet = \Str::limit($comment->content, 30);
         $comment->delete();
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'delete_comment',
+            'action_label' => $this->getActionPrefix() . 'حذف التعليق',
+            'target_name' => $contentSnippet,
+            'target_url' => null,
+        ]);
 
         return response()->json([
             'status'  => true,

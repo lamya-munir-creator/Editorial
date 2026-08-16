@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ActivityLogController;
 
 
 /*
@@ -37,6 +38,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
 });
 
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/activity-logs', [ActivityLogController::class, 'index']);
+});
+
 // =========================================================================
 // 2. الملفات الموُزعة على الفريق لتفادي تعارضات Git (Modular Route Files)
 // =========================================================================
+
+// الشخص الأول: المقالات والأقسام (Articles & Categories Feature)
+require __DIR__.'/articles_api.php';
+
+// الشخص الثاني: النظام التفاعلي والإعلانات (Comments & Advertisements Feature)
+require __DIR__.'/ads_comments_api.php';
+
+// الشخص الثالث: إعدادات النظام والمستخدمين (System Settings & RBAC Management)
+require __DIR__.'/admin_settings_api.php';
+
+require __DIR__ . '/media_api.php';

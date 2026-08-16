@@ -4,15 +4,21 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use App\Models\ActivityLog;
 use App\Http\Requests\StoreSettingRequest;
 use App\Http\Requests\UpdateSettingRequest;
 use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
 {
-    /**
-     * 1. عرض جميع الإعدادات (أو تجميعها حسب المجموعات)
-     */
+    private function getActionPrefix(): string
+    {
+        $user = auth()->user();
+        $firstName = $user ? $user->first_name : '';
+        $isFemale = $firstName && (mb_substr($firstName, -1) === 'ة' || mb_substr($firstName, -1) === 'ه');
+        return $isFemale ? 'قامت بـ' : 'قام بـ';
+    }
+
     public function index()
     {
         $settings = Setting::latest()->get();
@@ -23,9 +29,6 @@ class SettingController extends Controller
         ], 200);
     }
 
-    /**
-     * 2. عرض إعداد واحد
-     */
     public function show($id)
     {
         $setting = Setting::findOrFail($id);
@@ -36,14 +39,10 @@ class SettingController extends Controller
         ], 200);
     }
 
-    /**
-     * 3. إضافة إعداد جديد (مع دعم رفع الملفات/الصور)
-     */
     public function store(StoreSettingRequest $request)
     {
         $validatedData = $request->validated();
 
-        // التعامل مع رفع الملف/الصورة إن وجد
         if ($request->hasFile('setting_value')) {
             $path = $request->file('setting_value')->store('settings', 'public');
             $validatedData['setting_value'] = $path;
@@ -54,6 +53,14 @@ class SettingController extends Controller
 
         $setting = Setting::create($validatedData);
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'system_settings',
+            'action_label' => $this->getActionPrefix() . 'إنشاء إعداد جديد',
+            'target_name' => $setting->key ?? 'إعداد نظام',
+            'target_url' => '/settings',
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => 'تم إنشاء الإعداد بنجاح.',
@@ -61,15 +68,11 @@ class SettingController extends Controller
         ], 201);
     }
 
-    /**
-     * 4. تعديل إعداد (مع تبديل الملف القديم بالجديد إن وُجد)
-     */
     public function update(UpdateSettingRequest $request, $id)
     {
         $setting = Setting::findOrFail($id);
         $validatedData = $request->validated();
 
-        // التعامل مع رفع الملف الجديد وتفريغ القديم
         if ($request->hasFile('setting_value')) {
             if ($setting->setting_value && Storage::disk('public')->exists($setting->setting_value)) {
                 Storage::disk('public')->delete($setting->setting_value);
@@ -83,6 +86,14 @@ class SettingController extends Controller
 
         $setting->update($validatedData);
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'system_settings',
+            'action_label' => $this->getActionPrefix() . 'تعديل إعدادات النظام',
+            'target_name' => $setting->key ?? 'إعدادات النظام',
+            'target_url' => '/settings',
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => 'تم تحديث الإعداد بنجاح.',
@@ -90,23 +101,28 @@ class SettingController extends Controller
         ], 200);
     }
 
-    /**
-     * 5. حذف إعداد مع ملفه المرفق
-     */
     public function destroy($id)
     {
         $setting = Setting::findOrFail($id);
+        $keyName = $setting->key ?? 'إعداد نظام';
 
-        // حذف الملف المرفق إن كان مخزناً
         if ($setting->setting_value && Storage::disk('public')->exists($setting->setting_value)) {
             Storage::disk('public')->delete($setting->setting_value);
         }
 
         $setting->delete();
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'system_settings',
+            'action_label' => $this->getActionPrefix() . 'حذف إعداد',
+            'target_name' => $keyName,
+            'target_url' => null,
+        ]);
+
         return response()->json([
             'status'  => true,
-            'message' => 'تم حذف الإعداد بنجاح.'
+            'message' => 'تم حذف الإعداد بنجاح'
         ], 200);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Article;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\ArticleResource;
@@ -14,74 +15,92 @@ use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
-    // عرض كل التصنيفات باستخدام CategoryResource (GET /api/categories)
- public function index(Request $request)
-{
-    $query = Category::with('image');
-
-    // الفلترة حسب الحالة
-    if ($request->filled('status')) {
-        $query->where('status', $request->input('status'));
+    private function getActionPrefix(): string
+    {
+        $user = auth()->user();
+        $firstName = $user ? $user->first_name : '';
+        $isFemale = $firstName && (mb_substr($firstName, -1) === 'Ø©' || mb_substr($firstName, -1) === 'Ù‡');
+        return $isFemale ? 'Ù‚Ø§Ù…Øª Ø¨Ù€' : 'Ù‚Ø§Ù… Ø¨Ù€';
     }
 
-    $categories = $query
-        ->latest()
-        ->paginate($request->input('per_page', 10));
+    public function index(Request $request)
+    {
+        $query = Category::with('image');
 
-    return response()->json([
-        'status' => true,
-        'data'   => CategoryResource::collection($categories),
-        'meta'   => [
-            'current_page' => $categories->currentPage(),
-            'last_page'    => $categories->lastPage(),
-            'per_page'     => $categories->perPage(),
-            'total'        => $categories->total(),
-        ],
-    ], 200);
-}
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
 
-    // إضافة تصنيف جديد (POST /api/categories)
+        $categories = $query
+            ->latest()
+            ->paginate($request->input('per_page', 10));
+
+        return response()->json([
+            'status' => true,
+            'data'   => CategoryResource::collection($categories),
+            'meta'   => [
+                'current_page' => $categories->currentPage(),
+                'last_page'    => $categories->lastPage(),
+                'per_page'     => $categories->perPage(),
+                'total'        => $categories->total(),
+            ],
+        ], 200);
+    }
+
     public function store(StoreCategoryRequest $request)
-{
-    $validatedData = $request->validated();
+    {
+        $validatedData = $request->validated();
 
-    $validatedData['slug'] = Str::slug($validatedData['name']);
-    $validatedData['created_by'] = auth()->id() ?? 1;
+        $validatedData['slug'] = Str::slug($validatedData['name']);
+        $validatedData['created_by'] = auth()->id() ?? 1;
 
-    if ($request->hasFile('image')) {
-        $file = $request->file('image');
-        $path = $file->store('categories', 'public');
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $path = $file->store('categories', 'public');
 
-        $media = \App\Models\Media::create([
-            'uuid'          => (string) Str::uuid(),
-            'uploaded_by'   => auth()->id() ?? 1,
-            'file_name'     => basename($path),
-            'original_name' => $file->getClientOriginalName(),
-            'disk'          => 'public',
-            'path'          => $path,
-            'webp_path'     => $path,
-            'mime_type'     => $file->getClientMimeType(),
-            'extension'     => $file->getClientOriginalExtension(),
-            'file_size'     => $file->getSize(),
-            'type'          => 'image',
-            'visibility'    => 'public',
-            'created_by'    => auth()->id() ?? 1,
+            $media = \App\Models\Media::create([
+                'uuid'          => (string) Str::uuid(),
+                'uploaded_by'   => auth()->id() ?? 1,
+                'file_name'     => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk'          => 'public',
+                'path'          => $path,
+                'webp_path'     => $path,
+                'mime_type'     => $file->getClientMimeType(),
+                'extension'     => $file->getClientOriginalExtension(),
+                'file_size'     => $file->getSize(),
+                'type'          => 'image',
+                'visibility'    => 'public',
+                'created_by'    => auth()->id() ?? 1,
+            ]);
+
+            $validatedData['image_id'] = $media->id;
+        }
+
+        $remove_image = $request->input('remove_image');
+            if ($remove_image === 'true' || $remove_image === '1' || $remove_image === true || $remove_image === 1) {
+                $validatedData['image_id'] = null;
+            }
+
+            unset($validatedData['image']);
+
+        $category = Category::create($validatedData);
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'add_category',
+            'action_label' => $this->getActionPrefix() . 'Ø¥Ø¶Ø§ÙØ© ØªØµÙ†ÙŠÙ Ø¬Ø¯ÙŠØ¯',
+            'target_name' => $category->name,
+            'target_url' => '/categories',
         ]);
 
-        $validatedData['image_id'] = $media->id;
+        return response()->json([
+            'status'  => true,
+            'message' => __('Category created successfully'),
+            'data'    => new CategoryResource($category->load('image'))
+        ], 201);
     }
 
-    unset($validatedData['image']);
-
-    $category = Category::create($validatedData);
-
-    return response()->json([
-        'status'  => true,
-        'message' => __('Category created successfully'),
-        'data'    => new CategoryResource($category->load('image'))
-    ], 201);
-}
-    // عرض تصنيف محدد عبر الـ Route Model Binding
     public function show(Category $category)
     {
         return response()->json([
@@ -90,7 +109,6 @@ class CategoryController extends Controller
         ], 200);
     }
 
-    // عرض تصنيف محدد بناءً على الـ Slug مع مقالاته المنشورة
     public function showBySlug(string $slug)
     {
         $category = Category::where('slug', $slug)->first();
@@ -121,7 +139,6 @@ class CategoryController extends Controller
         ], 200);
     }
 
-    // تحديث تصنيف (PUT/PATCH /api/categories/{id})
     public function update(UpdateCategoryRequest $request, Category $category)
     {
         $validatedData = $request->validated();
@@ -132,7 +149,6 @@ class CategoryController extends Controller
 
         $validatedData['updated_by'] = auth()->id() ?? 1;
 
-        // معالجة رفع الصورة الجديدة وربطها بجدول الـ Media
         if ($request->hasFile('image')) {
             $file = $request->file('image');
             $path = $file->store('categories', 'public');
@@ -153,12 +169,19 @@ class CategoryController extends Controller
                 'created_by'    => auth()->id() ?? 1,
             ]);
 
-            // تخزين الـ id في عمود image_id المطابق لقاعدة البيانات
             $validatedData['image_id'] = $media->id;
         }
 
         $category->fill($validatedData);
         $category->save();
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'edit_category',
+            'action_label' => $this->getActionPrefix() . 'ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„ØªØµÙ†ÙŠÙ',
+            'target_name' => $category->name,
+            'target_url' => '/categories',
+        ]);
 
         return response()->json([
             'status'  => true,
@@ -167,10 +190,18 @@ class CategoryController extends Controller
         ], 200);
     }
 
-    // حذف تصنيف (DELETE /api/categories/{id})
     public function destroy(Category $category)
     {
+        $name = $category->name;
         $category->delete();
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'delete_category',
+            'action_label' => $this->getActionPrefix() . 'Ø­Ø°Ù Ø§Ù„ØªØµÙ†ÙŠÙ',
+            'target_name' => $name,
+            'target_url' => null,
+        ]);
 
         return response()->json([
             'status'  => true,

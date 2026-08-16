@@ -6,21 +6,28 @@ use App\Http\Controllers\Controller;
 use App\Models\Author;
 use App\Models\AuthorApplication;
 use App\Models\Role;
+use App\Models\ActivityLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Http\Requests\StoreAuthorApplicationRequest;
+
 class AuthorApplicationController extends Controller
 {
-    /**
-     * إرسال طلب جديد للانضمام ككاتب.
-     */
-public function store(StoreAuthorApplicationRequest $request): JsonResponse    {
-    $this->authorize('create', AuthorApplication::class);
+    private function getActionPrefix(): string
+    {
+        $user = auth()->user();
+        $firstName = $user ? $user->first_name : '';
+        $isFemale = $firstName && (mb_substr($firstName, -1) === 'ة' || mb_substr($firstName, -1) === 'ه');
+        return $isFemale ? 'قامت بـ' : 'قام بـ';
+    }
+
+    public function store(StoreAuthorApplicationRequest $request): JsonResponse
+    {
+        $this->authorize('create', AuthorApplication::class);
         $user = $request->user();
 
-        // المستخدم لديه Author بالفعل
         if ($user->authorProfile) {
             return response()->json([
                 'status' => false,
@@ -28,7 +35,6 @@ public function store(StoreAuthorApplicationRequest $request): JsonResponse    {
             ], 422);
         }
 
-        // يوجد طلب قيد المراجعة
         $hasPendingApplication = $user->authorApplications()
             ->where('status', 'pending')
             ->exists();
@@ -48,9 +54,16 @@ public function store(StoreAuthorApplicationRequest $request): JsonResponse    {
             'job_title' => $validatedData['job_title'] ?? null,
             'biography' => $validatedData['biography'] ?? null,
             'website' => $validatedData['website'] ?? null,
-            'application_message' =>
-                $validatedData['application_message'] ?? null,
+            'application_message' => $validatedData['application_message'] ?? null,
             'status' => 'pending',
+        ]);
+
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'action_type' => 'apply_author',
+            'action_label' => $this->getActionPrefix() . 'تقديم طلب انضمام ككاتب',
+            'target_name' => $application->display_name,
+            'target_url' => '/author-applications',
         ]);
 
         return response()->json([
@@ -60,31 +73,23 @@ public function store(StoreAuthorApplicationRequest $request): JsonResponse    {
         ], 201);
     }
 
-    /**
- * عرض أحدث طلب للكاتب للمستخدم الحالي.
- *
- * GET /api/author-applications/my
- */
-public function mine(Request $request): JsonResponse
-{
-    $application = $request->user()
-        ->authorApplications()
-        ->with('reviewer:id,first_name,last_name,username')
-        ->latest()
-        ->first();
+    public function mine(Request $request): JsonResponse
+    {
+        $application = $request->user()
+            ->authorApplications()
+            ->with('reviewer:id,first_name,last_name,username')
+            ->latest()
+            ->first();
 
-    return response()->json([
-        'status' => true,
-        'message' => $application
-            ? 'تم جلب طلب الكاتب بنجاح.'
-            : 'لا يوجد طلب كاتب.',
-        'data' => $application,
-    ], 200);
-}
+        return response()->json([
+            'status' => true,
+            'message' => $application
+                ? 'تم جلب طلب الكاتب بنجاح.'
+                : 'لا يوجد طلب كاتب.',
+            'data' => $application,
+        ], 200);
+    }
 
-    /**
-     * عرض جميع طلبات الكتاب للإدارة.
-     */
     public function index(Request $request): JsonResponse
     {
         $query = AuthorApplication::with([
@@ -112,40 +117,22 @@ public function mine(Request $request): JsonResponse
         ], 200);
     }
 
-    /**
-     * عرض طلب محدد.
-     */
     public function show(AuthorApplication $application): JsonResponse
-{
-    $application->load([
-        'user:id,uuid,role_id,first_name,last_name,username,email,phone,avatar_id,locale,status',
-        'reviewer:id,uuid,first_name,last_name,username',
-    ]);
+    {
+        $application->load([
+            'user:id,uuid,role_id,first_name,last_name,username,email,phone,avatar_id,locale,status',
+            'reviewer:id,uuid,first_name,last_name,username',
+        ]);
 
-    return response()->json([
-        'status' => true,
-        'message' => 'تم جلب طلب الكاتب بنجاح.',
-        'data' => $application,
-    ], 200);
-}
+        return response()->json([
+            'status' => true,
+            'message' => 'تم جلب طلب الكاتب بنجاح.',
+            'data' => $application,
+        ], 200);
+    }
 
-    /**
-     * الموافقة على طلب الكاتب.
-     *
-     * عند الموافقة:
-     * 1. التأكد من أن الطلب pending.
-     * 2. التأكد من عدم وجود Author للمستخدم.
-     * 3. الحصول على Role الكاتب.
-     * 4. إنشاء Author.
-     * 5. تحديث role_id.
-     * 6. مزامنة Spatie Role.
-     * 7. تحديث حالة الطلب.
-     */
-    public function approve(
-        
-        Request $request,
-        AuthorApplication $application
-    ): JsonResponse {
+    public function approve(Request $request, AuthorApplication $application): JsonResponse
+    {
         $this->authorize('review', $application);
         if ($application->status !== 'pending') {
             return response()->json([
@@ -157,41 +144,24 @@ public function mine(Request $request): JsonResponse
         $admin = $request->user();
 
         try {
-            $result = DB::transaction(function () use (
-                $application,
-                $admin
-            ) {
+            $result = DB::transaction(function () use ($application, $admin) {
                 $user = $application->user()
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                // حماية إضافية من إنشاء Author مكرر
                 if ($user->authorProfile) {
-                    throw new \RuntimeException(
-                        'هذا المستخدم لديه ملف كاتب بالفعل.'
-                    );
+                    throw new \RuntimeException('هذا المستخدم لديه ملف كاتب بالفعل.');
                 }
 
-                /*
-                 * الحصول على دور الكاتب.
-                 *
-                 * نستخدم slug أولاً ثم name كاحتياط.
-                 */
                 $role = Role::where('slug', 'author')
                     ->orWhere('name', 'author')
                     ->first();
 
                 if (!$role) {
-                    throw new \RuntimeException(
-                        'دور الكاتب غير موجود في قاعدة البيانات.'
-                    );
+                    throw new \RuntimeException('دور الكاتب غير موجود في قاعدة البيانات.');
                 }
 
-                /*
-                 * إنشاء Slug فريد للكاتب.
-                 */
                 $baseSlug = Str::slug($application->display_name);
-
                 if ($baseSlug === '') {
                     $baseSlug = 'author';
                 }
@@ -204,9 +174,6 @@ public function mine(Request $request): JsonResponse
                     $counter++;
                 }
 
-                /*
-                 * إنشاء ملف الكاتب.
-                 */
                 $author = Author::create([
                     'uuid' => (string) Str::uuid(),
                     'user_id' => $user->id,
@@ -219,21 +186,13 @@ public function mine(Request $request): JsonResponse
                     'created_by' => $admin->id,
                 ]);
 
-                /*
-                 * تحديث Role المستخدم.
-                 *
-                 * النظام الحالي لديك يستخدم:
-                 * role_id + Spatie Roles
-                 */
                 $user->update([
                     'role_id' => $role->id,
                     'updated_by' => $admin->id,
                 ]);
 
-$user->assignRole($role->name);
-                /*
-                 * تحديث طلب الكاتب.
-                 */
+                $user->assignRole($role->name);
+
                 $application->update([
                     'status' => 'approved',
                     'reviewed_by' => $admin->id,
@@ -247,30 +206,23 @@ $user->assignRole($role->name);
                 ];
             });
 
+            ActivityLog::create([
+                'user_id' => $admin->id,
+                'action_type' => 'approve_author',
+                'action_label' => $this->getActionPrefix() . 'الموافقة على طلب الكاتب',
+                'target_name' => $application->display_name,
+                'target_url' => '/authors',
+            ]);
+
             return response()->json([
                 'status' => true,
                 'message' => 'تمت الموافقة على طلب الكاتب وإنشاء ملف الكاتب بنجاح.',
                 'data' => [
                     'application' => $result['application'],
                     'author' => $result['author']->load('avatar'),
-                   'user' => $result['user']
-    ->load([
-        'role:id,uuid,name,slug',
-        'roles:id,uuid,name,slug',
-    ])
-    ->only([
-        'id',
-        'uuid',
-        'role_id',
-        'first_name',
-        'last_name',
-        'username',
-        'email',
-        'phone',
-        'avatar_id',
-        'locale',
-        'status',
-    ]),
+                    'user' => $result['user']->load(['role:id,uuid,name,slug', 'roles:id,uuid,name,slug'])->only([
+                        'id', 'uuid', 'role_id', 'first_name', 'last_name', 'username', 'email', 'phone', 'avatar_id', 'locale', 'status',
+                    ]),
                 ],
             ], 200);
         } catch (\RuntimeException $exception) {
@@ -281,13 +233,8 @@ $user->assignRole($role->name);
         }
     }
 
-    /**
-     * رفض طلب الكاتب.
-     */
-    public function reject(
-        Request $request,
-        AuthorApplication $application
-    ): JsonResponse {
+    public function reject(Request $request, AuthorApplication $application): JsonResponse
+    {
         $this->authorize('review', $application);
         if ($application->status !== 'pending') {
             return response()->json([
@@ -297,10 +244,7 @@ $user->assignRole($role->name);
         }
 
         $validatedData = $request->validate([
-            'admin_notes' => [
-                'nullable',
-                'string',
-            ],
+            'admin_notes' => ['nullable', 'string'],
         ]);
 
         $application->update([
@@ -308,6 +252,14 @@ $user->assignRole($role->name);
             'admin_notes' => $validatedData['admin_notes'] ?? null,
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
+        ]);
+
+        ActivityLog::create([
+            'user_id' => $request->user()->id,
+            'action_type' => 'reject_author',
+            'action_label' => $this->getActionPrefix() . 'رفض طلب الكاتب',
+            'target_name' => $application->display_name,
+            'target_url' => '/author-applications',
         ]);
 
         return response()->json([
