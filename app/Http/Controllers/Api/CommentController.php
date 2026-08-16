@@ -21,11 +21,42 @@ class CommentController extends Controller
         return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
-    public function index()
+        public function index(Request $request, $article = null)
     {
-        $comments = Comment::with(['user.avatar', 'article'])->latest()->paginate(15);
+        $query = Comment::with(['user.avatar', 'article'])->latest();
+
+        if ($article) {
+            $query->whereHas('article', function($q) use ($article) {
+                $q->where('id', $article)->orWhere('slug', $article);
+            });
+            // Public article view only shows approved comments
+            $query->where('status', 'approved');
+        }
+
+        if ($request->has('status') && $request->status !== 'all' && $request->status !== 'الكل' && $request->status !== 'جميع الحالات') {
+            $status = $request->status;
+            if ($status === 'pending' || $status === 'قيد الانتظار') $status = 'pending';
+            if ($status === 'approved' || $status === 'مقبول') $status = 'approved';
+            if ($status === 'rejected' || $status === 'مرفوض') $status = 'rejected';
+            $query->where('status', $status);
+        }
+
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('content', 'like', "%{$search}%")
+                  ->orWhere('guest_name', 'like', "%{$search}%")
+                  ->orWhereHas('user', function($u) use ($search) {
+                      $u->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $comments = $query->paginate(15);
         
-        // استخدام الـ Resource بدلاً من الاستجابة الخام
+        // استخدام الـ Resource بدلاً من الإرجاع المباشر
         return CommentResource::collection($comments);
     }
 
@@ -88,7 +119,7 @@ class CommentController extends Controller
         ], 200);
     }
 
-    public function updateStatus(Request $request, $id)
+    public function updateStatus(UpdateCommentRequest $request, $id)
     {
         return $this->update($request, $id);
     }
