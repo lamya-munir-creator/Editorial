@@ -80,6 +80,9 @@ class CommentController extends Controller
             'status'      => $validatedData['status'] ?? 'pending',
         ]);
 
+        $admins = \App\Models\User::whereHas('role', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })->get();
+        \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\SystemAlert('تعليق جديد بانتظار المراجعة', 'info', '/admin/comments'));
+
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
             'action_type' => 'add_comment',
@@ -103,6 +106,14 @@ class CommentController extends Controller
         $validatedData = $request->validated();
 
         $comment->update($validatedData);
+
+        if (isset($validatedData['status'])) {
+            if ($validatedData['status'] === 'approved' && $comment->user) {
+                $comment->user->notify(new \App\Notifications\SystemAlert('تمت الموافقة على تعليقك!', 'success', '/'));
+            } elseif ($validatedData['status'] === 'rejected' && $comment->user) {
+                $comment->user->notify(new \App\Notifications\SystemAlert('تم رفض تعليقك.', 'error', '/'));
+            }
+        }
 
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,

@@ -167,6 +167,9 @@ class ArticleController extends Controller
             $article->tags()->attach($request->tags);
         }
 
+        $admins = \App\Models\User::whereHas('role', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })->get();
+        \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\SystemAlert('مقال جديد: ' . $article->title, 'info', '/admin/articles'));
+
         ActivityLog::create([
             'user_id' => $user->id ?? 1,
             'action_type' => $article->status === 'published' ? 'publish_article' : 'add_article',
@@ -241,6 +244,10 @@ class ArticleController extends Controller
 
         if ($request->has('tags')) {
             $article->tags()->sync($request->tags);
+        }
+
+        if (auth()->id() !== $article->author->user_id) {
+            $article->author->user->notify(new \App\Notifications\SystemAlert('تم تعديل مقالك: ' . $article->title, 'info', '/author/dashboard'));
         }
 
         ActivityLog::create([
