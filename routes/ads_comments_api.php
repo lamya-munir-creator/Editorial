@@ -21,6 +21,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // مسارات إدارة التعليقات (للأدمن، المحرر، والمشرف)
     Route::middleware(['role:admin|editor|moderator'])->group(function () {
+        Route::get('admin/comments', [CommentController::class, 'index']);
         Route::patch('comments/{comment}/status', [CommentController::class, 'updateStatus']);
         Route::match(['put', 'patch'], 'comments/{comment}', [CommentController::class, 'update']);
         Route::delete('comments/{comment}', [CommentController::class, 'destroy']);
