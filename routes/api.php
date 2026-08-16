@@ -24,6 +24,7 @@ require __DIR__ . '/author_applications_api.php';
 require __DIR__ . '/authors_api.php';
 require __DIR__ . '/author_articles_api.php';
 require __DIR__ . '/author_comments_api.php';
+require __DIR__ . '/author_notifications_api.php';
 
 // 1. مسارات المصادقة العامة والخاصة بـ API (عبر AuthController)
 Route::post('/register', [AuthController::class, 'register']);
