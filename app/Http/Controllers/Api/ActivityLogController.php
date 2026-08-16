@@ -26,7 +26,9 @@ class ActivityLogController extends Controller
             })
             ->when($action && $action !== 'all', function ($query) use ($action) {
                 if ($action === 'add') {
-                    $query->where('action_type', 'like', '%add%')->orWhere('action_type', 'like', '%publish%');
+                    $query->where(function ($q) {
+                        $q->where('action_type', 'like', '%add%')->orWhere('action_type', 'like', '%publish%');
+                    });
                 } elseif ($action === 'edit') {
                     $query->where('action_type', 'like', '%edit%');
                 } elseif ($action === 'delete') {
@@ -43,7 +45,7 @@ class ActivityLogController extends Controller
                 $query->whereDate('created_at', $date);
             })
             ->latest()
-            ->paginate(10);
+            ->paginate($request->get('per_page', 5));
 
         // تنسيق البيانات لتتوافق تماماً مع واجهة الفرونت إند
         $logs->getCollection()->transform(function ($log) {

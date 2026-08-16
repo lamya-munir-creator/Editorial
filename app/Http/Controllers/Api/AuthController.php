@@ -142,12 +142,22 @@ class AuthController extends Controller
 
         $user->update(['last_login_at' => now()]);
 
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        \App\Models\ActivityLog::create([
+            'user_id' => $user->id,
+            'action_type' => 'login',
+            'action_label' => 'تسجيل الدخول إلى النظام',
+            'target_name' => 'نظام الإدارة',
+            'target_url' => null,
+        ]);
+
         return response()->json([
             'status' => true,
             'message' => __('Logged in successfully'),
             'data' => [
                 'user' => $user->load('role'),
-                'access_token' => $user->createToken('auth_token')->plainTextToken,
+                'access_token' => $token,
                 'token_type' => 'Bearer',
             ],
         ], 200);
@@ -159,6 +169,13 @@ class AuthController extends Controller
 
         if ($user instanceof User) {
             $user->tokens()->delete();
+            \App\Models\ActivityLog::create([
+                'user_id' => $user->id,
+                'action_type' => 'logout',
+                'action_label' => 'تسجيل الخروج من النظام',
+                'target_name' => 'نظام الإدارة',
+                'target_url' => null,
+            ]);
         }
 
         return response()->json([

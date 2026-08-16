@@ -9,6 +9,9 @@ use App\Models\Role;
 use App\Models\ActivityLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Models\User;
+use App\Notifications\SystemAlert;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Http\Requests\StoreAuthorApplicationRequest;
@@ -57,6 +60,9 @@ class AuthorApplicationController extends Controller
             'application_message' => $validatedData['application_message'] ?? null,
             'status' => 'pending',
         ]);
+
+        $admins = User::whereHas('role', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })->get();
+        Notification::send($admins, new SystemAlert('طلب انضمام كاتب جديد من ' . $application->display_name, 'info', '/admin/author-applications'));
 
         ActivityLog::create([
             'user_id' => $user->id,
@@ -206,6 +212,8 @@ class AuthorApplicationController extends Controller
                 ];
             });
 
+            $application->user->notify(new SystemAlert('تمت الموافقة على طلب انضمامك ككاتب!', 'success', '/author/dashboard'));
+            
             ActivityLog::create([
                 'user_id' => $admin->id,
                 'action_type' => 'approve_author',
@@ -253,6 +261,8 @@ class AuthorApplicationController extends Controller
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
+
+        $application->user->notify(new SystemAlert('تم رفض طلب انضمامك ككاتب.', 'error', '/'));
 
         ActivityLog::create([
             'user_id' => $request->user()->id,
