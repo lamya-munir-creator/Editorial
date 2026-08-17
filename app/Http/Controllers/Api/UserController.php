@@ -110,7 +110,14 @@ class UserController extends Controller
             unset($validatedData['avatar'], $validatedData['password_confirmation']);
             $validatedData['created_by'] = $currentUserId;
 
-            return User::create($validatedData);
+            $user = User::create($validatedData);
+            if (isset($validatedData['role_id'])) {
+                $roleName = \App\Models\Role::find($validatedData['role_id'])?->name;
+                if ($roleName) {
+                    $user->syncRoles([$roleName]);
+                }
+            }
+            return $user;
         });
 
         ActivityLog::create([
@@ -174,6 +181,12 @@ class UserController extends Controller
             $validatedData['updated_by'] = $currentUserId;
 
             $user->update($validatedData);
+            if (isset($validatedData['role_id'])) {
+                $roleName = \App\Models\Role::find($validatedData['role_id'])?->name;
+                if ($roleName) {
+                    $user->syncRoles([$roleName]);
+                }
+            }
 
             return $user;
         });

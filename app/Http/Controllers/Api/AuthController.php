@@ -127,17 +127,15 @@ class AuthController extends Controller
             ->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-    return response()->json([
-        'status'  => false,
-        'message' => __('The provided credentials do not match our records.'),
-    ], 401);
-}
+            throw ValidationException::withMessages([
+                'email' => __('The provided credentials do not match our records.'),
+            ]);
+        }
 
         if ($user->status === 'inactive' || $user->status === 'suspended') {
-            return response()->json([
-                'status' => false,
-                'message' => __('Your account is currently inactive or suspended.'),
-            ], 403);
+            throw ValidationException::withMessages([
+                'email' => __('Your account is currently inactive or suspended.'),
+            ]);
         }
 
         $user->update(['last_login_at' => now()]);

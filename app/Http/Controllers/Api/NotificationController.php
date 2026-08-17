@@ -13,6 +13,10 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'غير مصرح لك، يرجى تسجيل الدخول.'], 401);
+        }
         
         $notifications = $user->notifications()->take(50)->get()->map(function($notification) {
             return [
@@ -33,7 +37,13 @@ class NotificationController extends Controller
      */
     public function markAsRead(Request $request, $id)
     {
-        $notification = $request->user()->notifications()->find($id);
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'غير مصرح لك'], 401);
+        }
+
+        $notification = $user->notifications()->find($id);
         
         if ($notification) {
             $notification->markAsRead();
@@ -48,7 +58,13 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(Request $request)
     {
-        $request->user()->unreadNotifications->markAsRead();
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'غير مصرح لك'], 401);
+        }
+
+        $user->unreadNotifications->markAsRead();
         return response()->json(['message' => 'تم تحديد الكل كمقروء']);
     }
 }

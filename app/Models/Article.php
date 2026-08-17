@@ -29,6 +29,10 @@ use Illuminate\Support\Str;
     'status',
     'created_by',
     'updated_by',
+    'submitted_for_review_by',
+    'submitted_for_review_at',
+    'reviewed_by',
+    'reviewed_at',
 ])]
 class Article extends Model
 {
@@ -42,6 +46,8 @@ class Article extends Model
             'is_featured' => 'boolean',
             'allow_comments' => 'boolean',
             'published_at' => 'datetime',
+            'submitted_for_review_at' => 'datetime',
+            'reviewed_at' => 'datetime',
         ];
     }
 
@@ -104,6 +110,16 @@ class Article extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function submittedForReviewBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'submitted_for_review_by');
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     public function getRouteKeyName(): string

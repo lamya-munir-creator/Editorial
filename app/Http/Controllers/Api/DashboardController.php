@@ -29,7 +29,7 @@ class DashboardController extends Controller
                 return [
                     'rank' => $index + 1,
                     'title' => $article->title,
-                    'author' => $article->author ? ($article->author->user->first_name . ' ' . $article->author->user->last_name) : 'مجهول',
+                    'author' => $article->author ? ($article->author->user?->first_name . ' ' . $article->author->user?->last_name) : 'مجهول',
                     'views' => number_format($article->views_count) . ' مشاهدة',
                     'trend' => 'trending_up', // Simplified
                     'trendColor' => 'text-success'
@@ -42,7 +42,7 @@ class DashboardController extends Controller
         // Get latest 2 articles
         $latestArticles = Article::with('author.user')->latest()->take(2)->get();
         foreach ($latestArticles as $article) {
-            $authorName = $article->author ? ($article->author->user->first_name . ' ' . $article->author->user->last_name) : 'مجهول';
+            $authorName = $article->author ? ($article->author->user?->first_name . ' ' . $article->author->user?->last_name) : 'مجهول';
             $activities->push([
                 'title' => $article->status === 'published' ? 'تم نشر مقال جديد' : 'تم إضافة مسودة مقال',
                 'info' => "المقال: \"{$article->title}\" • " . $article->created_at->diffForHumans(),

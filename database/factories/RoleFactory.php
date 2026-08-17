@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 class RoleFactory extends Factory
 {
     /**
-     * Define the model's default state.
+     * Define شthe model's default state.
      *
      * @return array<string, mixed>
      */

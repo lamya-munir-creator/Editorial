@@ -29,7 +29,10 @@ Route::middleware('auth:sanctum')->group(function () {
         '/author/articles',
         [AuthorArticleController::class, 'store']
     )->name('author.articles.store');
-
+Route::post(
+    '/author/articles/{article}/submit-review',
+    [AuthorArticleController::class, 'submitForReview']
+)->name('author.articles.submit-review');
     // عرض مقال محدد للكاتب
     Route::get(
         '/author/articles/{article}',
