@@ -75,10 +75,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     // إدارة القوائم
     Route::apiResource('menus', MenuController::class);
     Route::apiResource('menu-items', MenuItemController::class);
-});
 
-Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('/notifications', [\App\Http\Controllers\Api\NotificationController::class, 'index']);
-    Route::put('/notifications/{id}/read', [\App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
-    Route::put('/notifications/read-all', [\App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+    // مسارات الـ SEO
+    Route::get('/seo-settings', [\App\Http\Controllers\Api\SeoController::class, 'index']);
+    Route::post('/seo-settings', [\App\Http\Controllers\Api\SeoController::class, 'update']);
 });

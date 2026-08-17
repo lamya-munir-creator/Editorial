@@ -58,3 +58,8 @@ require __DIR__.'/ads_comments_api.php';
 require __DIR__.'/admin_settings_api.php';
 
 require __DIR__ . '/media_api.php';
+
+
+// Public SEO Routes
+Route::get('/robots.txt', [\App\Http\Controllers\Api\RobotsController::class, 'index']);
+Route::get('/sitemap.xml', [\App\Http\Controllers\Api\SitemapController::class, 'index']);
