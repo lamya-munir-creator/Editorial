@@ -7,6 +7,20 @@ use App\Models\User;
 
 class ArticlePolicy
 {
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        // المشرف (moderator) لا يمتلك أي صلاحية لإدارة المقالات نهائيًا
+        if ($user->hasRole('moderator')) {
+            return false;
+        }
+
+        return null;
+    }
+
     /**
      * عرض قائمة المقالات العامة.
      */
@@ -25,89 +39,101 @@ class ArticlePolicy
 
     /**
      * إنشاء مقال.
-     *
-     * الكاتب المعتمد أو المحرر أو الأدمن
-     * يحتاج إلى صلاحية create-article.
      */
     public function create(User $user): bool
     {
-        return $user->can('create-article');
+        return $user->hasRole('editor') || $user->authorProfile()->exists();
     }
 
     /**
      * تعديل المقال.
-     *
-     * الأدمن والمحرر يستطيعان تعديل أي مقال.
-     * الكاتب يستطيع تعديل مقاله فقط.
      */
     public function update(User $user, Article $article): bool
     {
-        if (! $user->can('edit-article')) {
-            return false;
-        }
-
-        // الأدمن والمحرر يستطيعان تعديل أي مقال
-        if ($user->hasAnyRole(['admin', 'editor'])) {
+        if ($user->hasRole('editor')) {
             return true;
         }
 
-        // الكاتب يستطيع تعديل مقاله فقط
         $author = $user->authorProfile;
-
-        if (! $author) {
-            return false;
+        if ($author) {
+            return (int) $article->author_id === (int) $author->id;
         }
 
-        return (int) $article->author_id === (int) $author->id;
-    }
-public function manage(User $user, Article $article): bool
-{
-    if ($user->hasAnyRole(['admin', 'editor'])) {
-        return true;
-    }
-
-    $author = $user->authorProfile;
-
-    if (! $author) {
         return false;
     }
 
-    return (int) $article->author_id === (int) $author->id;
-}
     /**
-     * حذف المقال.
-     *
-     * الأدمن والمحرر يستطيعان حذف أي مقال.
-     * الكاتب يستطيع حذف مقاله فقط.
+     * إدارة المقال (للعرض الخاص).
      */
-    public function delete(User $user, Article $article): bool
+    public function manage(User $user, Article $article): bool
     {
-        if (! $user->can('delete-article')) {
-            return false;
-        }
-
-        // الأدمن والمحرر يستطيعان حذف أي مقال
-        if ($user->hasAnyRole(['admin', 'editor'])) {
-            return true;
-        }
-
-        // الكاتب يستطيع حذف مقاله فقط
-        $author = $user->authorProfile;
-
-        if (! $author) {
-            return false;
-        }
-
-        return (int) $article->author_id === (int) $author->id;
+        return $this->update($user, $article);
     }
 
     /**
-     * نشر المقال مباشرة.
-     *
-     * الأدمن والمحرر فقط حسب صلاحية publish-article.
+     * حذف المقال.
      */
-    public function publish(User $user): bool
+    public function delete(User $user, Article $article): bool
     {
-        return $user->can('publish-article');
+        if ($user->hasRole('editor')) {
+            return in_array($article->status, ['draft', 'pending_review']);
+        }
+
+        $author = $user->authorProfile;
+        if ($author && (int) $article->author_id === (int) $author->id) {
+            return $article->status === 'draft';
+        }
+
+        return false;
+    }
+
+    /**
+     * إرسال للمراجعة.
+     */
+    public function submitForReview(User $user, Article $article): bool
+    {
+        if ($user->hasRole('editor')) {
+            return true;
+        }
+
+        $author = $user->authorProfile;
+        if ($author && (int) $article->author_id === (int) $author->id) {
+            return $article->status === 'draft';
+        }
+
+        return false;
+    }
+
+    /**
+     * مراجعة المقال.
+     */
+    public function review(User $user, Article $article): bool
+    {
+        return $user->hasRole('editor');
+    }
+
+    /**
+     * نشر المقال.
+     */
+    public function publish(User $user, Article $article): bool
+    {
+        return $user->hasRole('editor');
+    }
+
+    /**
+     * أرشفة المقال.
+     */
+    public function archive(User $user, Article $article): bool
+    {
+        if ($user->hasRole('editor')) {
+            return true;
+        }
+
+        $author = $user->authorProfile;
+        if ($author && (int) $article->author_id === (int) $author->id) {
+            return true;
+        }
+
+        return false;
     }
 }

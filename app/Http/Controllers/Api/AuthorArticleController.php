@@ -8,7 +8,9 @@ use App\Http\Requests\UpdateArticleRequest;
 use App\Http\Resources\ArticleResource;
 use App\Models\Article;
 use App\Models\Media;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -104,6 +106,7 @@ class AuthorArticleController extends Controller
         ]);
     }
 
+
     /**
      * إنشاء مقال جديد للكاتب الحالي.
      */
@@ -180,7 +183,33 @@ class AuthorArticleController extends Controller
             ], 201);
         });
     }
+public function submitForReview(
+    Request $request,
+    Article $article
+): JsonResponse {
 
+    $this->authorize('submitForReview', $article);
+
+    $article->update([
+        'status' => 'pending_review',
+        'submitted_for_review_by' => $request->user()->id,
+        'submitted_for_review_at' => now(),
+    ]);
+
+    ActivityLog::create([
+        'user_id' => $request->user()->id,
+        'action_type' => 'submit_article_for_review',
+        'action_label' => 'إرسال المقال للمراجعة',
+        'target_name' => $article->title,
+        'target_url' => '/author/articles',
+    ]);
+
+    return response()->json([
+        'status' => true,
+        'message' => 'تم إرسال المقال للمراجعة بنجاح.',
+        'data' => $article->fresh(),
+    ]);
+}
     /**
      * عرض مقال من مقالات الكاتب الحالي.
      */
