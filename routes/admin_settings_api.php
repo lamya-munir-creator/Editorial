@@ -18,7 +18,15 @@ use App\Http\Controllers\Api\NotificationController;
 // استقبال رسالة جديدة متاح للزائر بدون تسجيل دخول
 Route::post('/contact-messages', [ContactMessageController::class, 'store']);
 
+<<<<<<< Updated upstream
 Route::middleware(['auth:sanctum', 'role:admin|editor|moderator'])->group(function () {
+=======
+// الحصول على إعدادات الموقع العامة المتاحة للجمهور بدون مصادقة
+Route::get('/public/settings', [SettingController::class, 'publicSettings']);
+
+// مسارات لوحة التحكم: تحتاج توكن صالح ودور admin
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+>>>>>>> Stashed changes
     // إحصائيات وبحث لوحة التحكم
     Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
     Route::get('/search', [\App\Http\Controllers\Api\GlobalSearchController::class, 'search']);
