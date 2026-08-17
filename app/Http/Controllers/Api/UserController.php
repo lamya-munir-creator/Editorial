@@ -40,12 +40,40 @@ class UserController extends Controller
                 });
             })
             ->latest()
-            ->paginate(10);
+            ->paginate(4);
+
+        $stats = [
+            'total' => User::count(),
+            'active' => User::where('status', 'active')->count(),
+            'suspended' => User::where('status', 'suspended')->count(),
+            'inactive' => User::where('status', 'inactive')->count(),
+            'admins' => User::where(function ($q) {
+                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%admin%'))
+                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%admin%'));
+            })->count(),
+            'editors' => User::where(function ($q) {
+                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%editor%'))
+                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%editor%'));
+            })->count(),
+            'authors' => User::where(function ($q) {
+                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%author%'))
+                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%author%'));
+            })->count(),
+            'moderators' => User::where(function ($q) {
+                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%moderator%'))
+                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%moderator%'));
+            })->count(),
+            'users' => User::where(function ($q) {
+                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%user%'))
+                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%user%'));
+            })->count(),
+        ];
 
         return response()->json([
             'status' => true,
             'message' => 'تم جلب المستخدمين بنجاح',
             'data' => $users,
+            'stats' => $stats,
         ], 200);
     }
 
