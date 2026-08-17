@@ -1,0 +1,28 @@
+$kind: http-request
+name: author_applications
+url: http://127.0.0.1:8000/api/author-applications
+method: POST
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Authorization: "{{bearer_token_16lq}}"
+body:
+  type: json
+  content: "{\r
+
+    \    \"display_name\": \"كاتب اختبار الرفض\",\r
+
+    \    \"job_title\": \"كاتب محتوى\",\r
+
+    \    \"biography\": \"اختبار عملية رفض طلب الكاتب.\",\r
+
+    \    \"website\": \"https://example.com\",\r
+
+    \    \"application_message\": \"هذا طلب تجريبي لاختبار الرفض.\"\r
+
+    }"
+auth:
+  type: bearer
+  credentials:
+    token: 82|VNLPPBAUPMdViPzHOk0FSkzyoeLnfiJVjATswwk0564385b7
+order: 4502907279725437

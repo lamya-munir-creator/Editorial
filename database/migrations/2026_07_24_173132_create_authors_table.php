@@ -13,27 +13,62 @@ return new class extends Migration
     {
         Schema::create('authors', function (Blueprint $table) {
             $table->id();
+
             $table->uuid('uuid')->unique();
-            $table->foreignId('user_id')->nullable()->constrained('users');
-            $table->foreignId('avatar_id')->nullable()->constrained('media');
+
+            // One user = one author profile
+            $table->foreignId('user_id')
+                ->unique()
+                ->constrained('users')
+                ->cascadeOnDelete();
+
+            // Author avatar
+            $table->foreignId('avatar_id')
+                ->nullable()
+                ->constrained('media')
+                ->nullOnDelete();
+
+            // Public author profile
             $table->string('display_name', 150);
             $table->string('slug', 180)->unique();
+
             $table->text('biography')->nullable();
             $table->string('job_title', 150)->nullable();
+
+            // Social / professional links
             $table->string('website', 255)->nullable();
             $table->string('facebook', 255)->nullable();
             $table->string('twitter', 255)->nullable();
             $table->string('linkedin', 255)->nullable();
             $table->string('instagram', 255)->nullable();
             $table->string('youtube', 255)->nullable();
-            $table->enum('gender', ["male", "female", "other"]);
-            $table->enum('status', ["active", "inactive"]);
-            $table->foreignId('created_by')->constrained('users');
-            $table->foreignId('updated_by')->nullable()->constrained('users');
-            $table->timestamp('created_at')->nullable();
-            $table->timestamp('updated_at')->nullable();
-            $table->timestamp('deleted_at')->nullable();
-            $table->index('slug');
+
+            // Author information
+            $table->enum('gender', [
+                'male',
+                'female',
+                'other',
+            ])->nullable();
+
+            $table->enum('status', [
+                'active',
+                'inactive',
+            ])->default('active');
+
+            // Audit
+            $table->foreignId('created_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('updated_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->timestamps();
+            $table->softDeletes();
+
             $table->index('status');
         });
     }

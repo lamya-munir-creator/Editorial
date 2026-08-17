@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Media;
+use App\Models\ActivityLog;
 use App\Http\Requests\StoreMediaRequest;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
@@ -11,14 +12,18 @@ use Illuminate\Support\Facades\Auth;
 
 class MediaController extends Controller
 {
-    /**
-     * عرض قائمة الوسائط المرفوعة
-     */
+    private function getActionPrefix(): string
+    {
+        $user = auth()->user();
+        $firstName = $user ? $user->first_name : '';
+        $isFemale = $firstName && (mb_substr($firstName, -1) === 'ة' || mb_substr($firstName, -1) === 'ه');
+        return $isFemale ? 'قامت بـ' : 'قام بـ';
+    }
+
     public function index()
     {
         $media = Media::latest()->paginate(20);
 
-        // إضافة رابط الملف المباشر url لكل عنصر
         $media->getCollection()->transform(function ($item) {
             $item->file_url = asset('storage/' . $item->path);
             $item->webp_url = $item->webp_path ? asset('storage/' . $item->webp_path) : $item->file_url;
@@ -31,14 +36,10 @@ class MediaController extends Controller
         ], 200);
     }
 
-    /**
-     * رفع ملف جديد وحفظ كافه بياناته في جدول media مع تحسين WebP
-     */
     public function store(StoreMediaRequest $request)
     {
         $file = $request->file('file');
 
-        // 1. تحديد نوع الملف (image, video, document, audio)
         $mime = $file->getClientMimeType();
         $type = 'document';
         if (str_contains($mime, 'image')) {
@@ -49,11 +50,9 @@ class MediaController extends Controller
             $type = 'audio';
         }
 
-        // 2. رفع الملف إلى مجلد storage/app/public/media
         $path = $file->store('media', 'public');
-        $webpPath = $path; // افتراضي
+        $webpPath = $path;
 
-        // 3. قراءة أبعاد الصورة وتحسين صيغة WebP للصور
         $width = null;
         $height = null;
         if ($type === 'image') {
@@ -63,7 +62,6 @@ class MediaController extends Controller
                 $height = $imageSize[1];
             }
 
-            // إذا أمكن إنشاء نسخة WebP باستخدام GD Library
             if (function_exists('imagecreatefromstring') && function_exists('imagewebp')) {
                 try {
                     $contents = file_get_contents($file->getRealPath());
@@ -78,13 +76,11 @@ class MediaController extends Controller
                         }
                     }
                 } catch (\Throwable $e) {
-                    // في حال التعذر استخدام المسار الأصلي
                     $webpPath = $path;
                 }
             }
         }
 
-        // 4. إنشاء السجل في جدول media
         $media = Media::create([
             'uuid'          => (string) Str::uuid(),
             'uploaded_by'   => Auth::id() ?? 1,
@@ -108,6 +104,14 @@ class MediaController extends Controller
         $media->file_url = asset('storage/' . $media->path);
         $media->webp_url = asset('storage/' . $media->webp_path);
 
+        ActivityLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'action_type' => 'upload_media',
+            'action_label' => $this->getActionPrefix() . 'رفع ملف جديد',
+            'target_name' => $media->original_name,
+            'target_url' => '/media',
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => 'تم رفع الملف بنجاح وتحسين الصيغة.',
@@ -115,12 +119,10 @@ class MediaController extends Controller
         ], 201);
     }
 
-    /**
-     * حذف ملف ووسيط
-     */
     public function destroy($id)
     {
         $media = Media::findOrFail($id);
+        $fileName = $media->original_name;
 
         if ($media->path && Storage::disk('public')->exists($media->path)) {
             Storage::disk('public')->delete($media->path);
@@ -131,6 +133,14 @@ class MediaController extends Controller
         }
 
         $media->delete();
+
+        ActivityLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'action_type' => 'delete_media',
+            'action_label' => $this->getActionPrefix() . 'حذف ملف',
+            'target_name' => $fileName,
+            'target_url' => null,
+        ]);
 
         return response()->json([
             'status'  => true,

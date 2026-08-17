@@ -36,8 +36,7 @@ class UpdateArticleRequest extends FormRequest
             'reading_time'      => 'sometimes|nullable|integer|min:1',
             'is_featured'       => 'sometimes|nullable|boolean',
             'allow_comments'    => 'sometimes|nullable|boolean',
-            'status'            => 'sometimes|required|in:draft,published,archived',
-        ];
+'status' => 'sometimes|in:draft,published,archived',        ];
     }
 
     /**

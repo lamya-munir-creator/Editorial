@@ -7,8 +7,22 @@ use App\Models\User;
 
 class ArticlePolicy
 {
+    public function before(User $user, string $ability): ?bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        // المشرف (moderator) لا يمتلك أي صلاحية لإدارة المقالات نهائيًا
+        if ($user->hasRole('moderator')) {
+            return false;
+        }
+
+        return null;
+    }
+
     /**
-     * إمكانية استعراض قائمة المقالات (عامة للجميع)
+     * عرض قائمة المقالات العامة.
      */
     public function viewAny(?User $user): bool
     {
@@ -16,7 +30,7 @@ class ArticlePolicy
     }
 
     /**
-     * إمكانية استعراض مقال محدد (عامة للجميع)
+     * عرض مقال عام.
      */
     public function view(?User $user, Article $article): bool
     {
@@ -24,61 +38,102 @@ class ArticlePolicy
     }
 
     /**
-     * إمكانية إنشاء مقال جديد
-     * يتطلب صلاحية 'create-article' (المحرر، الأدمن، والكاتب)
+     * إنشاء مقال.
      */
     public function create(User $user): bool
     {
-        return $user->can('create-article');
+        return $user->hasRole('editor') || $user->authorProfile()->exists();
     }
 
     /**
-     * إمكانية تعديل المقال
-     * - يتطلب صلاحية 'edit-article'
-     * - المحرر والمدير يمكنهما تعديل أي مقال
-     * - الكاتب يمكنه تعديل المقال الخاص به فقط
+     * تعديل المقال.
      */
     public function update(User $user, Article $article): bool
     {
-        if (! $user->can('edit-article')) {
-            return false;
-        }
-
-        if ($user->hasAnyRole(['admin', 'editor'])) {
+        if ($user->hasRole('editor')) {
             return true;
         }
 
-        // الكاتب يتفقد ملكية المقال عبر created_by أو ملف الكاتب المربوط
-        return $article->created_by === $user->id 
-            || ($article->author && $article->author->user_id === $user->id);
+        $author = $user->authorProfile;
+        if ($author) {
+            return (int) $article->author_id === (int) $author->id;
+        }
+
+        return false;
     }
 
     /**
-     * إمكانية حذف المقال
-     * - يتطلب صلاحية 'delete-article'
-     * - المحرر والمدير يمكنهما حذف أي مقال
-     * - الكاتب يمكنه حذف مقاله الخاص فقط
+     * إدارة المقال (للعرض الخاص).
+     */
+    public function manage(User $user, Article $article): bool
+    {
+        return $this->update($user, $article);
+    }
+
+    /**
+     * حذف المقال.
      */
     public function delete(User $user, Article $article): bool
     {
-        if (! $user->can('delete-article')) {
-            return false;
+        if ($user->hasRole('editor')) {
+            return in_array($article->status, ['draft', 'pending_review']);
         }
 
-        if ($user->hasAnyRole(['admin', 'editor'])) {
-            return true;
+        $author = $user->authorProfile;
+        if ($author && (int) $article->author_id === (int) $author->id) {
+            return $article->status === 'draft';
         }
 
-        return $article->created_by === $user->id 
-            || ($article->author && $article->author->user_id === $user->id);
+        return false;
     }
 
     /**
-     * إمكانية نشر المقال مباشرة
-     * يتطلب صلاحية 'publish-article' (المحرر والمدير فقط)
+     * إرسال للمراجعة.
      */
-    public function publish(User $user): bool
+    public function submitForReview(User $user, Article $article): bool
     {
-        return $user->can('publish-article');
+        if ($user->hasRole('editor')) {
+            return true;
+        }
+
+        $author = $user->authorProfile;
+        if ($author && (int) $article->author_id === (int) $author->id) {
+            return $article->status === 'draft';
+        }
+
+        return false;
+    }
+
+    /**
+     * مراجعة المقال.
+     */
+    public function review(User $user, Article $article): bool
+    {
+        return $user->hasRole('editor');
+    }
+
+    /**
+     * نشر المقال.
+     */
+    public function publish(User $user, Article $article): bool
+    {
+        return $user->hasRole('editor');
+    }
+
+    /**
+     * أرشفة المقال.
+     */
+    public function archive(User $user, Article $article): bool
+    {
+        if ($user->hasRole('editor')) {
+            return true;
+        }
+
+        $author = $user->authorProfile;
+        if ($author && (int) $article->author_id === (int) $author->id) {
+            return true;
+        }
+
+        return false;
     }
 }

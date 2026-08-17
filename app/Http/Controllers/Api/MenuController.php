@@ -4,15 +4,21 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Menu;
+use App\Models\ActivityLog;
 use App\Http\Requests\StoreMenuRequest;
 use App\Http\Requests\UpdateMenuRequest;
 use Illuminate\Support\Str;
 
 class MenuController extends Controller
 {
-    /**
-     * 1. عرض جميع القوائم
-     */
+    private function getActionPrefix(): string
+    {
+        $user = auth()->user();
+        $firstName = $user ? $user->first_name : '';
+        $isFemale = $firstName && (mb_substr($firstName, -1) === 'ة' || mb_substr($firstName, -1) === 'ه');
+        return $isFemale ? 'قامت بـ' : 'قام بـ';
+    }
+
     public function index()
     {
         $menus = Menu::latest()->paginate(15);
@@ -23,9 +29,6 @@ class MenuController extends Controller
         ], 200);
     }
 
-    /**
-     * 2. عرض قائمة محددة
-     */
     public function show($id)
     {
         $menu = Menu::findOrFail($id);
@@ -36,9 +39,6 @@ class MenuController extends Controller
         ], 200);
     }
 
-    /**
-     * 3. إنشاء قائمة جديدة
-     */
     public function store(StoreMenuRequest $request)
     {
         $validatedData = $request->validated();
@@ -49,6 +49,14 @@ class MenuController extends Controller
 
         $menu = Menu::create($validatedData);
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'add_menu',
+            'action_label' => $this->getActionPrefix() . 'إنشاء قائمة جديدة',
+            'target_name' => $menu->name ?? 'قائمة',
+            'target_url' => '/menus',
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => 'تم إنشاء القائمة بنجاح.',
@@ -56,9 +64,6 @@ class MenuController extends Controller
         ], 201);
     }
 
-    /**
-     * 4. تعديل قائمة
-     */
     public function update(UpdateMenuRequest $request, $id)
     {
         $menu = Menu::findOrFail($id);
@@ -68,6 +73,14 @@ class MenuController extends Controller
 
         $menu->update($validatedData);
 
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'edit_menu',
+            'action_label' => $this->getActionPrefix() . 'تحديث القائمة',
+            'target_name' => $menu->name ?? 'قائمة',
+            'target_url' => '/menus',
+        ]);
+
         return response()->json([
             'status'  => true,
             'message' => 'تم تحديث القائمة بنجاح.',
@@ -75,13 +88,19 @@ class MenuController extends Controller
         ], 200);
     }
 
-    /**
-     * 5. حذف قائمة
-     */
     public function destroy($id)
     {
         $menu = Menu::findOrFail($id);
+        $name = $menu->name ?? 'قائمة';
         $menu->delete();
+
+        ActivityLog::create([
+            'user_id' => auth()->id() ?? 1,
+            'action_type' => 'delete_menu',
+            'action_label' => $this->getActionPrefix() . 'حذف القائمة',
+            'target_name' => $name,
+            'target_url' => null,
+        ]);
 
         return response()->json([
             'status'  => true,
