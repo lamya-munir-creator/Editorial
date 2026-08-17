@@ -46,7 +46,11 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
    
-    // إدارة الصفحات والوسائط
-    Route::apiResource('pages', PageController::class)->except(['index', 'show']);
+    // إدارة الصفحات (مقتصرة على الأدمن عبر role:admin)
+    Route::middleware('role:admin')->group(function () {
+        Route::apiResource('pages', PageController::class)->except(['index', 'show']);
+    });
+
+    // إدارة الوسائط
     Route::apiResource('media', MediaController::class)->except(['index', 'show']);
 });
