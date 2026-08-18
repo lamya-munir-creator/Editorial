@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ArticleResource;
+use App\Http\Requests\StoreArticleRequest;
+use App\Http\Requests\UpdateArticleRequest;
+use Illuminate\Support\Str;
+use App\Models\Media;
 use App\Models\Article;
 use Illuminate\Http\Request;
 
@@ -55,6 +59,126 @@ class EditorArticleController extends Controller
             'status' => true,
             'data' => new ArticleResource($article),
         ]);
+    }
+
+    /**
+     * إنشاء مقال (مدير/محرر)
+     */
+    public function store(StoreArticleRequest $request)
+    {
+        // $this->authorize('create', Article::class); // يمكن تفعيلها حسب السياسات
+
+        $validated = $request->validated();
+        $validated['created_by'] = auth()->id() ?? 1;
+        
+        $baseSlug = Str::slug($validated['title']);
+        $slug = $baseSlug ?: 'article';
+        $counter = 1;
+        while (Article::withTrashed()->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter++;
+        }
+        $validated['slug'] = $slug;
+
+        $validated['published_at'] = (isset($validated['status']) && $validated['status'] === 'published') ? now() : null;
+
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $path = $file->store('articles', 'public');
+            
+            $media = Media::create([
+                'uuid'          => (string) Str::uuid(),
+                'uploaded_by'   => auth()->id() ?? 1,
+                'file_name'     => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk'          => 'public',
+                'path'          => $path,
+                'webp_path'     => $path,
+                'mime_type'     => $file->getClientMimeType(),
+                'extension'     => $file->getClientOriginalExtension(),
+                'file_size'     => $file->getSize(),
+                'type'          => 'image',
+                'visibility'    => 'public',
+                'created_by'    => auth()->id() ?? 1,
+            ]);
+
+            $validated['featured_image_id'] = $media->id;
+        }
+
+        $article = Article::create($validated);
+
+        if ($request->has('tags')) {
+            $article->tags()->attach($request->tags);
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم إنشاء المقال بنجاح',
+            'data'    => new ArticleResource($article->load(['category', 'tags', 'author', 'featuredImage']))
+        ], 201);
+    }
+
+    /**
+     * تعديل المقال (مدير/محرر)
+     */
+    public function update(UpdateArticleRequest $request, Article $article)
+    {
+        // $this->authorize('update', $article); // يمكن تفعيلها حسب السياسات
+
+        $validated = $request->validated();
+        $validated['updated_by'] = auth()->id() ?? 1;
+
+        if (isset($validated['title']) && $validated['title'] !== $article->title) {
+            $baseSlug = Str::slug($validated['title']);
+            $slug = $baseSlug ?: 'article';
+            $counter = 1;
+            while (Article::withTrashed()->where('slug', $slug)->where('id', '!=', $article->id)->exists()) {
+                $slug = $baseSlug . '-' . $counter++;
+            }
+            $validated['slug'] = $slug;
+        }
+
+        if (isset($validated['status'])) {
+            if ($validated['status'] === 'published' && !$article->published_at) {
+                $validated['published_at'] = now();
+            } elseif ($validated['status'] !== 'published') {
+                $validated['published_at'] = null;
+            }
+        }
+
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $path = $file->store('articles', 'public');
+            
+            $media = Media::create([
+                'uuid'          => (string) Str::uuid(),
+                'uploaded_by'   => auth()->id() ?? 1,
+                'file_name'     => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk'          => 'public',
+                'path'          => $path,
+                'webp_path'     => $path,
+                'mime_type'     => $file->getClientMimeType(),
+                'extension'     => $file->getClientOriginalExtension(),
+                'file_size'     => $file->getSize(),
+                'type'          => 'image',
+                'visibility'    => 'public',
+                'created_by'    => auth()->id() ?? 1,
+            ]);
+
+            $validated['featured_image_id'] = $media->id;
+        }
+
+        $article->update($validated);
+
+        if ($request->has('tags')) {
+            $article->tags()->sync($request->tags);
+        }
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'تم تحديث المقال بنجاح',
+            'data'    => new ArticleResource($article->fresh()->load(['category', 'tags', 'author', 'featuredImage']))
+        ], 200);
     }
 
     /**
