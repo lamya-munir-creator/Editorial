@@ -22,6 +22,11 @@ Route::middleware(['auth:sanctum', 'role:admin|editor|moderator'])->group(functi
     // إحصائيات وبحث لوحة التحكم
     Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
     Route::get('/search', [\App\Http\Controllers\Api\GlobalSearchController::class, 'search']);
+    
+    // الإشعارات
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 });
 
 // مسارات لوحة التحكم: تحتاج توكن صالح ودور admin

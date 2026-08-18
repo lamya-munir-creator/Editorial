@@ -79,6 +79,13 @@ class EditorArticleController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
+        if ($article->author && $article->author->id !== $request->user()->id) {
+            $article->author->notify(new \App\Notifications\SystemAlert(
+                "تم قبول ونشر مقالك: {$article->title}",
+                "success"
+            ));
+        }
+
         return response()->json([
             'status' => true,
             'message' => 'تم نشر المقال بنجاح.',
@@ -107,6 +114,13 @@ class EditorArticleController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
+        if ($article->author && $article->author->id !== $request->user()->id) {
+            $article->author->notify(new \App\Notifications\SystemAlert(
+                "تم قبول ونشر مقالك: {$article->title}",
+                "success"
+            ));
+        }
+
         return response()->json([
             'status' => true,
             'message' => 'تم إعادة المقال كمسودة لطلب التعديلات.',
@@ -132,6 +146,13 @@ class EditorArticleController extends Controller
             'status' => 'archived',
             'updated_by' => $request->user()->id,
         ]);
+
+        if ($article->author && $article->author->id !== $request->user()->id) {
+            $article->author->notify(new \App\Notifications\SystemAlert(
+                "تم قبول ونشر مقالك: {$article->title}",
+                "success"
+            ));
+        }
 
         return response()->json([
             'status' => true,
