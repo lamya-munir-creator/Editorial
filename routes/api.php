@@ -62,3 +62,5 @@ require __DIR__ . '/media_api.php';
 // Public SEO Routes
 Route::get('/robots.txt', [\App\Http\Controllers\Api\RobotsController::class, 'index']);
 Route::get('/sitemap.xml', [\App\Http\Controllers\Api\SitemapController::class, 'index']);
+
+Route::get('/public/settings', [\App\Http\Controllers\Api\SettingController::class, 'getPublicSettings']);

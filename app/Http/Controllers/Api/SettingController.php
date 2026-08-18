@@ -19,6 +19,20 @@ class SettingController extends Controller
         return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
+
+// أضف هذه الدالة داخل الـ SettingController
+    public function getPublicSettings()
+    {
+        
+        // جلب الإعدادات التي تم تحديدها كعامة فقط (حيث is_public = 1 أو true)
+        $settings = Setting::where('is_public', true)->get();
+
+        return response()->json([
+            'status' => true,
+            'data'   => $settings
+        ], 200);
+    }
+
     public function index()
     {
         $settings = Setting::latest()->get();
