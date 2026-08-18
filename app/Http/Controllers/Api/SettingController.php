@@ -19,12 +19,22 @@ class SettingController extends Controller
         return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
+<<<<<<< HEAD
     public function getPublicSettings()
     {
+=======
+
+// أضف هذه الدالة داخل الـ SettingController
+    public function getPublicSettings()
+    {
+        
+        // جلب الإعدادات التي تم تحديدها كعامة فقط (حيث is_public = 1 أو true)
+>>>>>>> fix/amendments(1)-integration
         $settings = Setting::where('is_public', true)->get();
 
         return response()->json([
             'status' => true,
+<<<<<<< HEAD
             'data' => $settings
         ], 200);
     }
@@ -81,6 +91,9 @@ class SettingController extends Controller
             'status' => true,
             'data'   => (object) $data,
 
+=======
+            'data'   => $settings
+>>>>>>> fix/amendments(1)-integration
         ], 200);
     }
 

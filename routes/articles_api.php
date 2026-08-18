@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('can:manage-categories')->group(function () {
         Route::apiResource('categories', CategoryController::class)->except(['index', 'show']);
         Route::apiResource('tags', TagController::class)->except(['index', 'show']);
+        Route::apiResource('articles', ArticleController::class)->except(['index', 'show']);
     });
 
    
