@@ -19,6 +19,60 @@ class SettingController extends Controller
         return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
+    public function publicSettings()
+    {
+        $settings = Setting::where('is_public', true)->get();
+
+        $data = [];
+
+        foreach ($settings as $setting) {
+            $key = $setting->setting_key ?? $setting->key;
+            if (!$key) {
+                continue;
+            }
+
+            $raw = $setting->setting_value;
+            $type = strtolower($setting->value_type ?? 'string');
+
+            switch ($type) {
+                case 'integer':
+                case 'int':
+                    $data[$key] = (int) $raw;
+                    break;
+
+                case 'boolean':
+                case 'bool':
+                    if (is_bool($raw)) {
+                        $data[$key] = $raw;
+                    } else {
+                        $lower = strtolower(trim((string) $raw));
+                        $data[$key] = in_array($lower, ['1', 'true', 'on', 'yes'], true);
+                    }
+                    break;
+
+                case 'json':
+                case 'array':
+                    if (is_array($raw) || is_object($raw)) {
+                        $data[$key] = $raw;
+                    } else {
+                        $decoded = json_decode((string) $raw, true);
+                        $data[$key] = (json_last_error() === JSON_ERROR_NONE) ? $decoded : $raw;
+                    }
+                    break;
+
+                case 'string':
+                default:
+                    $data[$key] = (string) $raw;
+                    break;
+            }
+        }
+
+        return response()->json([
+            'status' => true,
+            'data'   => (object) $data,
+        ], 200);
+    }
+
     public function index()
     {
         $settings = Setting::latest()->get();

@@ -16,10 +16,23 @@ Route::middleware([
         [EditorArticleController::class, 'index']
     );
 
+    // إنشاء مقال
+    Route::post(
+        '/articles',
+        [EditorArticleController::class, 'store']
+    );
+
     // مقال محدد
     Route::get(
         '/articles/{article}',
         [EditorArticleController::class, 'show']
+    );
+
+    // تعديل المقال
+    Route::match(
+        ['put', 'patch'],
+        '/articles/{article}',
+        [EditorArticleController::class, 'update']
     );
 
     // نشر مقال بعد المراجعة
