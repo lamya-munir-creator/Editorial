@@ -22,9 +22,10 @@ class AuthorFactory extends Factory
         return [
             'uuid' => (string) Str::uuid(),
 
-            'user_id' => fake()->optional(0.8)->passthrough(
-                User::query()->inRandomOrder()->value('id')
-            ),
+            // ✅ ينشئ مستخدم جديد تلقائياً لكل Author
+            // هذا يضمن عدم تكرار user_id أبداً (unique)
+            // وعدم إرسال null أبداً (not nullable)
+            'user_id' => User::factory(),
 
             'avatar_id' => fake()->optional(0.6)->passthrough(
                 Media::query()
@@ -102,10 +103,6 @@ class AuthorFactory extends Factory
         ]);
     }
 
-    public function withoutUser(): static
-    {
-        return $this->state(fn (): array => [
-            'user_id' => null,
-        ]);
-    }
+    // ⚠️ تم حذف withoutUser() لأن العمود NOT NULL في قاعدة البيانات
+    // لا يمكن استخدامها أبداً بدون تعديل الـ Migration
 }
