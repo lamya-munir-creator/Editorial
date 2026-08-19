@@ -5,25 +5,32 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ArticleResource;
 use App\Models\Article;
-use App\Models\Author;
 use App\Models\Media;
-use App\Models\Tag;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreArticleRequest;
 use App\Http\Requests\UpdateArticleRequest;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Notification;
 
 class ArticleController extends Controller
 {
     private function getActionPrefix(): string
     {
         $user = auth()->user();
-        if ($user->hasRole('admin')) {
+
+        if ($user?->hasRole('admin')) {
             return 'المدير: ';
-        } elseif ($user->hasRole('author')) {
+        }
+
+        if ($user?->hasRole('editor')) {
+            return 'المحرر: ';
+        }
+
+        if ($user?->hasRole('author')) {
             return 'الكاتب: ';
         }
+
         return '';
     }
 
@@ -36,6 +43,7 @@ class ArticleController extends Controller
             'category',
             'tags',
             'author',
+            'creator',
             'featuredImage',
         ]);
 
@@ -119,69 +127,140 @@ class ArticleController extends Controller
         ]);
     }
 
+    /**
+     * إنشاء مقال جديد.
+     *
+     * الأدمن والمحرر لا يختاران الكاتب.
+     * يتم تسجيل المستخدم الحالي في created_by.
+     */
     public function store(StoreArticleRequest $request)
     {
         $validated = $request->validated();
 
         $user = auth()->user();
-        $author = $user?->authorProfile;
 
-        if (!$author) {
+        if (!$user) {
             return response()->json([
                 'status' => false,
-                'message' => 'عذراً، يجب أن يكون لديك ملف كاتب لإضافة مقال.'
-            ], 403);
+                'message' => 'يجب تسجيل الدخول لإضافة مقال.',
+            ], 401);
         }
 
-        $validated['author_id']  = $author->id;
+        /*
+         * لا نأخذ author_id من Frontend.
+         *
+         * الأدمن والمحرر ينشئان المقال بدون اختيار كاتب.
+         * لذلك created_by هو المستخدم الحالي.
+         */
         $validated['created_by'] = $user->id;
-        $validated['slug']       = Str::slug($request->title) . '-' . Str::random(5);
-        $validated['published_at'] = ($validated['status'] === 'published') ? now() : null;
 
+        /*
+         * إذا لم يتم إرسال author_id، يبقى null.
+         * لا نربط المقال تلقائيًا بملف الكاتب للأدمن أو المحرر.
+         */
+        if (!array_key_exists('author_id', $validated)) {
+            $validated['author_id'] = null;
+        }
+
+        /*
+         * إنشاء slug من العنوان.
+         */
+        $validated['slug'] = Str::slug($request->title) . '-' . Str::random(5);
+
+        /*
+         * تاريخ النشر.
+         */
+        $validated['published_at'] =
+            ($validated['status'] ?? 'published') === 'published'
+                ? now()
+                : null;
+
+        /*
+         * رفع الصورة.
+         */
         if ($request->hasFile('image')) {
             $file = $request->file('image');
+
             $path = $file->store('articles', 'public');
-            
+
             $media = Media::create([
-                'uuid'          => (string) Str::uuid(),
-                'uploaded_by'   => auth()->id() ?? 1,
-                'file_name'     => basename($path),
+                'uuid' => (string) Str::uuid(),
+                'uploaded_by' => $user->id,
+                'file_name' => basename($path),
                 'original_name' => $file->getClientOriginalName(),
-                'disk'          => 'public',
-                'path'          => $path,
-                'webp_path'     => $path,
-                'mime_type'     => $file->getClientMimeType(),
-                'extension'     => $file->getClientOriginalExtension(),
-                'file_size'     => $file->getSize(),
-                'type'          => 'image',
-                'visibility'    => 'public',
-                'created_by'    => auth()->id() ?? 1,
+                'disk' => 'public',
+                'path' => $path,
+                'webp_path' => $path,
+                'mime_type' => $file->getClientMimeType(),
+                'extension' => $file->getClientOriginalExtension(),
+                'file_size' => $file->getSize(),
+                'type' => 'image',
+                'created_by' => $user->id,
             ]);
 
             $validated['featured_image_id'] = $media->id;
         }
 
+        /*
+         * إنشاء المقال.
+         */
         $article = Article::create($validated);
 
+        /*
+         * الوسوم.
+         */
         if ($request->has('tags')) {
             $article->tags()->attach($request->tags);
         }
 
-        $admins = \App\Models\User::whereHas('role', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })->get();
-        \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\SystemAlert('مقال جديد: ' . $article->title, 'info', '/admin/articles'));
+        /*
+         * إرسال إشعار للأدمن عند إنشاء مقال جديد.
+         */
+        $admins = \App\Models\User::whereHas('role', function ($q) {
+            $q->whereIn('name', ['admin', 'super-admin']);
+        })->get();
 
+        Notification::send(
+            $admins,
+            new \App\Notifications\SystemAlert(
+                'مقال جديد: ' . $article->title,
+                'info',
+                '/admin/articles'
+            )
+        );
+
+        /*
+         * سجل النشاط.
+         */
         ActivityLog::create([
-            'user_id' => $user->id ?? 1,
-            'action_type' => $article->status === 'published' ? 'publish_article' : 'add_article',
-            'action_label' => $article->status === 'published' ? $this->getActionPrefix() . 'قام بنشر مقال' : $this->getActionPrefix() . 'أضاف مقال جديد (مسودة)',
+            'user_id' => $user->id,
+            'action_type' =>
+                $article->status === 'published'
+                    ? 'publish_article'
+                    : 'add_article',
+            'action_label' =>
+                $article->status === 'published'
+                    ? $this->getActionPrefix() . 'قام بنشر مقال'
+                    : $this->getActionPrefix() . 'أضاف مقال جديد (مسودة)',
             'target_name' => $article->title,
             'target_url' => '/articles',
         ]);
 
+        /*
+         * إرجاع المقال مع الكاتب والمنشئ.
+         */
         return response()->json([
-            'status'  => true,
+            'status' => true,
             'message' => __('Article created successfully'),
-            'data'    => new ArticleResource($article->load(['category', 'tags', 'author', 'featuredImage']))
+            'data' => new ArticleResource(
+                $article->load([
+                    'category',
+                    'tags',
+                    'author',
+                    'creator',
+                    'featuredImage',
+                ])
+            ),
         ], 201);
     }
 
@@ -196,6 +275,7 @@ class ArticleController extends Controller
             'category',
             'tags',
             'author',
+            'creator',
             'featuredImage',
         ]);
 
@@ -205,6 +285,9 @@ class ArticleController extends Controller
         ]);
     }
 
+    /**
+     * تحديث مقال.
+     */
     public function update(UpdateArticleRequest $request, Article $article)
     {
         $this->authorize('update', $article);
@@ -215,26 +298,26 @@ class ArticleController extends Controller
             $validated['slug'] = Str::slug($validated['title']);
         }
 
-        $validated['updated_by'] = auth()->id() ?? 1;
+        $validated['updated_by'] = auth()->id();
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');
+
             $path = $file->store('articles', 'public');
 
             $media = Media::create([
-                'uuid'          => (string) Str::uuid(),
-                'uploaded_by'   => auth()->id() ?? 1,
-                'file_name'     => basename($path),
+                'uuid' => (string) Str::uuid(),
+                'uploaded_by' => auth()->id(),
+                'file_name' => basename($path),
                 'original_name' => $file->getClientOriginalName(),
-                'disk'          => 'public',
-                'path'          => $path,
-                'webp_path'     => $path,
-                'mime_type'     => $file->getClientMimeType(),
-                'extension'     => $file->getClientOriginalExtension(),
-                'file_size'     => $file->getSize(),
-                'type'          => 'image',
-                'visibility'    => 'public',
-                'created_by'    => auth()->id() ?? 1,
+                'disk' => 'public',
+                'path' => $path,
+                'webp_path' => $path,
+                'mime_type' => $file->getClientMimeType(),
+                'extension' => $file->getClientOriginalExtension(),
+                'file_size' => $file->getSize(),
+                'type' => 'image',
+                'created_by' => auth()->id(),
             ]);
 
             $validated['featured_image_id'] = $media->id;
@@ -246,12 +329,25 @@ class ArticleController extends Controller
             $article->tags()->sync($request->tags);
         }
 
-        if (auth()->id() !== $article->author->user_id) {
-            $article->author->user->notify(new \App\Notifications\SystemAlert('تم تعديل مقالك: ' . $article->title, 'info', '/author/dashboard'));
+        /*
+         * إشعار صاحب المقال الأصلي إذا قام شخص آخر بتعديله.
+         */
+        if (
+            $article->author &&
+            $article->author->user &&
+            auth()->id() !== $article->author->user_id
+        ) {
+            $article->author->user->notify(
+                new \App\Notifications\SystemAlert(
+                    'تم تعديل مقالك: ' . $article->title,
+                    'info',
+                    '/author/dashboard'
+                )
+            );
         }
 
         ActivityLog::create([
-            'user_id' => auth()->id() ?? 1,
+            'user_id' => auth()->id(),
             'action_type' => 'edit_article',
             'action_label' => $this->getActionPrefix() . 'تعديل مقال',
             'target_name' => $article->title,
@@ -259,22 +355,34 @@ class ArticleController extends Controller
         ]);
 
         return response()->json([
-            'status'  => true,
+            'status' => true,
             'message' => __('Article updated successfully'),
-            'data'    => new ArticleResource($article->fresh()->load(['category', 'tags', 'author', 'featuredImage']))
+            'data' => new ArticleResource(
+                $article->fresh()->load([
+                    'category',
+                    'tags',
+                    'author',
+                    'creator',
+                    'featuredImage',
+                ])
+            ),
         ], 200);
     }
 
+    /**
+     * حذف مقال.
+     */
     public function destroy(Article $article)
     {
         $this->authorize('delete', $article);
 
         $title = $article->title;
+
         $article->tags()->detach();
         $article->delete();
 
         ActivityLog::create([
-            'user_id' => auth()->id() ?? 1,
+            'user_id' => auth()->id(),
             'action_type' => 'delete_article',
             'action_label' => $this->getActionPrefix() . 'حذف مقال',
             'target_name' => $title,
@@ -282,8 +390,8 @@ class ArticleController extends Controller
         ]);
 
         return response()->json([
-            'status'  => true,
-            'message' => __('Article deleted successfully')
+            'status' => true,
+            'message' => __('Article deleted successfully'),
         ], 200);
     }
 
@@ -309,6 +417,7 @@ class ArticleController extends Controller
                 'category',
                 'tags',
                 'author',
+                'creator',
                 'featuredImage',
             ])
             ->latest('published_at')
