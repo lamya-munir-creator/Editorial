@@ -62,9 +62,4 @@ require __DIR__ . '/media_api.php';
 
 Route::get('/robots.txt', [\App\Http\Controllers\Api\RobotsController::class, 'index']);
 Route::get('/sitemap.xml', [\App\Http\Controllers\Api\SitemapController::class, 'index']);
-<<<<<<< HEAD
 Route::get('/public/settings', [\App\Http\Controllers\Api\SettingController::class, 'getPublicSettings']);
-=======
-
-Route::get('/public/settings', [\App\Http\Controllers\Api\SettingController::class, 'getPublicSettings']);
->>>>>>> fix/amendments(1)-integration
