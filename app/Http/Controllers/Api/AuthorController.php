@@ -20,12 +20,12 @@ class AuthorController extends Controller
     {
         $user = auth()->user();
         $firstName = $user ? $user->first_name : '';
-        $isFemale = $firstName && (mb_substr($firstName, -1) === 'Ø©' || mb_substr($firstName, -1) === 'Ù‡');
-        return $isFemale ? 'Ù‚Ø§Ù…Øª Ø¨Ù€' : 'Ù‚Ø§Ù… Ø¨Ù€';
+        $isFemale = $firstName && (mb_substr($firstName, -1) === 'ة' || mb_substr($firstName, -1) === 'ه');
+        return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
     /**
-     * Ø¬Ù„Ø¨ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„ÙƒÙØªÙ‘Ø§Ø¨ Ù…Ø¹ Ø¯Ø¹Ù… Ø§Ù„Ø¨Ø­Ø« ÙˆØ§Ù„ØªÙ‚Ø³ÙŠÙ… Ø§Ù„Ù…Ø§Ù„ÙŠ (Pagination)
+     * جلب قائمة الكُتّاب مع دعم البحث والتقسيم المالي (Pagination)
      */
     public function index(Request $request)
     {
@@ -42,13 +42,13 @@ class AuthorController extends Controller
 
         return response()->json([
             'status'  => true,
-            'message' => 'ØªÙ… Ø¬Ù„Ø¨ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„ÙƒÙØªÙ‘Ø§Ø¨ Ø¨Ù†Ø¬Ø§Ø­',
+            'message' => 'تم جلب قائمة الكُتّاب بنجاح',
             'data'    => $authors
         ], 200);
     }
 
     /**
-     * Ø¹Ø±Ø¶ ØªÙØ§ØµÙŠÙ„ ÙƒØ§ØªØ¨ Ù…Ø¹ÙŠÙ† Ù…Ø¹ Ù…Ù‚Ø§Ù„Ø§ØªÙ‡ ÙˆØµÙˆØ±ØªÙ‡ Ø¹Ø¨Ø± Ø§Ù„Ù…Ø¹Ø±Ù
+     * عرض تفاصيل كاتب معين مع مقالاته وصورته عبر المعرف
      */
     public function show($id)
     {
@@ -76,7 +76,7 @@ class AuthorController extends Controller
     }
 
     /**
-     * Ø¹Ø±Ø¶ ØªÙØ§ØµÙŠÙ„ Ø§Ù„ÙƒØ§ØªØ¨ ÙˆÙ…Ù‚Ø§Ù„Ø§ØªÙ‡ Ø¨ÙˆØ§Ø³Ø·Ø© Ø§Ù„Ù€ Slug
+     * عرض تفاصيل الكاتب ومقالاته بواسطة الـ Slug
      */
     public function showBySlug(string $slug)
     {
@@ -88,7 +88,7 @@ class AuthorController extends Controller
         if (!$author) {
             return response()->json([
                 'status'  => false,
-                'message' => __('Ø§Ù„ÙƒØ§ØªØ¨ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯')
+                'message' => __('الكاتب غير موجود')
             ], 404);
         }
 
@@ -112,26 +112,54 @@ class AuthorController extends Controller
     }
 
     /**
-     * Ø¥Ø¶Ø§ÙØ© ÙƒØ§ØªØ¨ Ø¬Ø¯ÙŠØ¯
+     * إضافة كاتب جديد مع حساب مستخدم وتوليد كلمة مرور تلقائية وإرسالها عبر البريد
      */
-    public function store(StoreAuthorRequest $request)
+    public function store(Request $request)
     {
-        $validatedData = $request->validated();
+        $request->validate([
+            'first_name'   => 'required|string|max:100',
+            'last_name'    => 'required|string|max:100',
+            'username'     => 'required|string|max:100|unique:users,username',
+            'email'        => 'required|email|max:255|unique:users,email',
+            'password'     => 'nullable|string|min:6', // جعلناها اختيارية لكي يتم توليدها تلقائياً
+            'role'         => 'required|string',
+            'display_name' => 'required|string|max:255',
+            'biography'    => 'nullable|string',
+            'gender'       => 'required|in:male,female,other',
+            'status'       => 'required|in:active,inactive',
+        ]);
 
-        if (!isset($validatedData['user_id'])) {
-            $validatedData['user_id'] = auth()->id() ?? 1;
-        }
+        $author = DB::transaction(function () use ($request) {
+            $currentUserId = auth()->id() ?? 1;
 
-        $author = DB::transaction(function () use ($request, $validatedData) {
-            $userId = auth()->id() ?? 1;
+            // توليد كلمة سر عشوائية قوية تلقائياً إذا لم يتم إدخالها يدوياً
+            $plainPassword = $request->filled('password') ? $request->password : Str::random(10);
 
+            $role = \App\Models\Role::where('name', $request->role)->first();
+            $roleId = $role ? $role->id : 5;
+
+            $user = \App\Models\User::create([
+                'uuid'       => Str::uuid(),
+                'role_id'    => $roleId,
+                'first_name' => $request->first_name,
+                'last_name'  => $request->last_name,
+                'username'   => $request->username,
+                'email'      => $request->email,
+                'password'   => \Illuminate\Support\Facades\Hash::make($plainPassword),
+                'status'     => $request->status,
+                'created_by' => $currentUserId,
+            ]);
+
+            $user->syncRoles([$request->role]);
+
+            $avatarId = null;
             if ($request->hasFile('avatar')) {
                 $file = $request->file('avatar');
                 $path = $file->store('authors', 'public');
 
                 $media = Media::create([
                     'uuid' => Str::uuid(),
-                    'uploaded_by' => $userId,
+                    'uploaded_by' => $currentUserId,
                     'file_name' => basename($path),
                     'original_name' => $file->getClientOriginalName(),
                     'disk' => 'public',
@@ -139,45 +167,61 @@ class AuthorController extends Controller
                     'mime_type' => $file->getMimeType(),
                     'extension' => $file->getClientOriginalExtension(),
                     'file_size' => $file->getSize(),
-                    'alt_text' => $validatedData['display_name'],
+                    'alt_text' => $request->display_name,
                     'type' => 'image',
                     'visibility' => 'public',
-                    'created_by' => $userId,
+                    'created_by' => $currentUserId,
                 ]);
 
-                $validatedData['avatar_id'] = $media->id;
+                $avatarId = $media->id;
             }
 
-            $remove_avatar = $request->input('remove_avatar');
-            if ($remove_avatar === 'true' || $remove_avatar === '1' || $remove_avatar === true || $remove_avatar === 1) {
-                $validatedData['avatar_id'] = null;
+            $author = Author::create([
+                'uuid'         => Str::uuid(),
+                'user_id'      => $user->id,
+                'display_name' => $request->display_name,
+                'slug'         => Str::slug($request->display_name) . '-' . Str::random(6),
+                'job_title'    => $request->role,
+                'biography'    => $request->biography,
+                'gender'       => $request->gender,
+                'status'       => $request->status,
+                'avatar_id'    => $avatarId,
+                'created_by'   => $currentUserId,
+            ]);
+
+            // إرسال كلمة المرور (المولدة أو المدخلة) إلى بريد المستخدم الإلكتروني
+            try {
+                \Illuminate\Support\Facades\Mail::raw(
+                    "مرحباً {$request->first_name},\n\nتم إنشاء حسابك بنجاح في منصة لومين.\nبريدك الإلكتروني: {$request->email}\nكلمة المرور الخاصة بك هي: {$plainPassword}\n\nيمكنك تسجيل الدخول وتغيير كلمة المرور الخاصة بك في أي وقت.",
+                    function ($message) use ($request) {
+                        $message->to($request->email)
+                                ->subject('بيانات حسابك الجديد في منصة لومين');
+                    }
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send author password email: ' . $e->getMessage());
             }
 
-            unset($validatedData['avatar']);
-            $validatedData['uuid'] = Str::uuid();
-            $validatedData['slug'] = Str::slug($validatedData['display_name']) . '-' . Str::random(6);
-            $validatedData['created_by'] = $userId;
-
-            return Author::create($validatedData);
+            return $author;
         });
 
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
             'action_type' => 'add_author',
-            'action_label' => $this->getActionPrefix() . 'Ø¥Ø¶Ø§ÙØ© ÙƒØ§ØªØ¨ Ø¬Ø¯ÙŠØ¯',
+            'action_label' => $this->getActionPrefix() . 'إضافة كاتب جديد مع حساب مستخدم',
             'target_name' => $author->display_name,
             'target_url' => '/authors',
         ]);
 
         return response()->json([
             'status' => true,
-            'message' => 'ØªÙ… Ø¥Ø¶Ø§ÙØ© Ø§Ù„ÙƒØ§ØªØ¨ Ø¨Ù†Ø¬Ø§Ø­',
-            'data' => $author->load('avatar'),
+            'message' => 'تم إضافة الكاتب وإنشاء حسابه وتوليد كلمة المرور وإرسالها إلى بريده بنجاح',
+            'data' => $author->load(['avatar', 'user']),
         ], 201);
     }
 
     /**
-     * ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª ÙƒØ§ØªØ¨
+     * تحديث بيانات الكاتب أو حالته
      */
     public function update(UpdateAuthorRequest $request, $id)
     {
@@ -201,15 +245,10 @@ class AuthorController extends Controller
                     'mime_type' => $file->getMimeType(),
                     'extension' => $file->getClientOriginalExtension(),
                     'file_size' => $file->getSize(),
-                    'width' => null,
-                    'height' => null,
-                    'duration' => null,
                     'alt_text' => $validatedData['display_name'] ?? $author->display_name,
-                    'caption' => null,
                     'type' => 'image',
                     'visibility' => 'public',
                     'created_by' => $userId,
-                    'updated_by' => null,
                 ]);
 
                 $validatedData['avatar_id'] = $media->id;
@@ -227,7 +266,37 @@ class AuthorController extends Controller
                 $validatedData['slug'] = Str::slug($validatedData['display_name']) . '-' . Str::random(6);
             }
 
+            // تحديث الدور والمسمى الوظيفي إذا تم ارسالهما
+            if ($request->filled('role')) {
+                $validatedData['job_title'] = $request->role;
+            }
+
             $author->update($validatedData);
+
+            // تحديث دور وحالة المستخدم المرتبط ببروفايل الكاتب في جدول users
+            if ($author->user) {
+                $userData = [];
+                if ($request->filled('role')) {
+                    $role = \App\Models\Role::where('name', $request->role)->first();
+                    if ($role) {
+                        $userData['role_id'] = $role->id;
+                    }
+                    $author->user->syncRoles([$request->role]);
+                }
+                if (isset($validatedData['status'])) {
+                    $userData['status'] = $validatedData['status'];
+                }
+                if (!empty($userData)) {
+                    $author->user->update($userData);
+                }
+            }
+
+            // إذا تحول الدور إلى كاتب، نتأكد من ربط مقالاته السابقة التي كتبها بـ created_by برقم الـ author_id الخاص به
+            if ($request->filled('role') && strtolower($request->role) === 'author') {
+                \App\Models\Article::where('created_by', $author->user_id)
+                    ->whereNull('author_id')
+                    ->update(['author_id' => $author->id]);
+            }
 
             return $author;
         });
@@ -235,20 +304,20 @@ class AuthorController extends Controller
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
             'action_type' => 'edit_author',
-            'action_label' => $this->getActionPrefix() . 'ØªØ¹Ø¯ÙŠÙ„ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ÙƒØ§ØªØ¨',
+            'action_label' => $this->getActionPrefix() . 'تعديل بيانات الكاتب',
             'target_name' => $author->display_name,
             'target_url' => '/authors',
         ]);
 
         return response()->json([
             'status' => true,
-            'message' => 'ØªÙ… ØªØ­Ø¯ÙŠØ« Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ÙƒØ§ØªÙØ¨ Ø¨Ù†Ø¬Ø§Ø­',
-            'data' => $author->fresh()->load('avatar'),
+            'message' => 'تم تحديث بيانات الكاتب بنجاح',
+            'data' => $author->fresh()->load(['avatar', 'user.role']),
         ], 200);
     }
 
     /**
-     * Ø¬Ù„Ø¨ Ø¨Ø±ÙˆÙØ§ÙŠÙ„ Ø§Ù„ÙƒØ§ØªØ¨ Ø§Ù„Ø®Ø§Øµ Ø¨Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ø§Ù„Ù…Ø³Ø¬Ù„ Ø¯Ø®ÙˆÙ„Ù‡ Ø­Ø§Ù„ÙŠÙ‹Ø§.
+     * جلب بروفايل الكاتب الخاص بالمستخدم المسجل دخوله حاليًا.
      */
     public function me(Request $request)
     {
@@ -260,19 +329,19 @@ class AuthorController extends Controller
         if (! $author) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù„Ø¯ÙŠÙƒ Ø¨Ø±ÙˆÙØ§ÙŠÙ„ ÙƒØ§ØªØ¨ Ø¨Ø¹Ø¯.',
+                'message' => 'لا يوجد لديك بروفايل كاتب بعد.',
             ], 404);
         }
 
         return response()->json([
             'status'  => true,
-            'message' => 'ØªÙ… Ø¬Ù„Ø¨ Ù…Ù„ÙÙƒ Ø§Ù„Ø´Ø®ØµÙŠ ÙƒÙ€ ÙƒØ§ØªØ¨ Ø¨Ù†Ø¬Ø§Ø­',
+            'message' => 'تم جلب ملفك الشخصي كـ كاتب بنجاح',
             'data'    => $author,
         ], 200);
     }
 
     /**
-     * ØªØ­Ø¯ÙŠØ« Ø¨Ø±ÙˆÙØ§ÙŠÙ„ Ø§Ù„ÙƒØ§ØªØ¨ Ø§Ù„Ø®Ø§Øµ Ø¨Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ø§Ù„Ù…Ø³Ø¬Ù„ Ø¯Ø®ÙˆÙ„Ù‡ Ø­Ø§Ù„ÙŠÙ‹Ø§.
+     * تحديث بروفايل الكاتب الخاص بالمستخدم المسجل دخوله حاليًا.
      */
     public function updateMe(UpdateAuthorRequest $request)
     {
@@ -282,7 +351,7 @@ class AuthorController extends Controller
         if (! $author) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù„Ø¯ÙŠÙƒ Ø¨Ø±ÙˆÙØ§ÙŠÙ„ ÙƒØ§ØªØ¨ Ø¨Ø¹Ø¯.',
+                'message' => 'لا يوجد لديك بروفايل كاتب بعد.',
             ], 404);
         }
 
@@ -338,20 +407,20 @@ class AuthorController extends Controller
         ActivityLog::create([
             'user_id' => $user->id,
             'action_type' => 'edit_author_profile',
-            'action_label' => $this->getActionPrefix() . 'ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø´Ø®ØµÙŠ Ù„Ù„ÙƒØ§ØªØ¨',
+            'action_label' => $this->getActionPrefix() . 'تعديل الملف الشخصي للكاتب',
             'target_name' => $author->display_name,
             'target_url' => '/authors',
         ]);
 
         return response()->json([
             'status'  => true,
-            'message' => 'ØªÙ… ØªØ­Ø¯ÙŠØ« Ù…Ù„ÙÙƒ Ø§Ù„Ø´Ø®ØµÙŠ ÙƒÙ€ ÙƒØ§ØªØ¨ Ø¨Ù†Ø¬Ø§Ø­',
+            'message' => 'تم تحديث ملفك الشخصي كـ كاتب بنجاح',
             'data'    => $author->fresh()->load('avatar'),
         ], 200);
     }
 
     /**
-     * Ø­Ø°Ù ÙƒØ§ØªØ¨
+     * حذف كاتب
      */
     public function destroy($id)
     {
@@ -362,14 +431,14 @@ class AuthorController extends Controller
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
             'action_type' => 'delete_author',
-            'action_label' => $this->getActionPrefix() . 'Ø­Ø°Ù Ø§Ù„ÙƒØ§ØªØ¨',
+            'action_label' => $this->getActionPrefix() . 'حذف الكاتب',
             'target_name' => $name,
             'target_url' => null,
         ]);
 
         return response()->json([
             'status'  => true,
-            'message' => 'ØªÙ… Ø­Ø°Ù Ø§Ù„ÙƒØ§ØªÙØ¨ Ø¨Ù†Ø¬Ø§Ø­'
+            'message' => 'تم حذف الكاتب بنجاح'
         ], 200);
     }
 }

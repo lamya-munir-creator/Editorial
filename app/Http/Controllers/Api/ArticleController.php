@@ -34,9 +34,6 @@ class ArticleController extends Controller
         return '';
     }
 
-    /**
-     * جلب المقالات العامة مع البحث والفلاتر والترتيب.
-     */
     public function index(Request $request)
     {
         $query = Article::with([
@@ -45,7 +42,22 @@ class ArticleController extends Controller
             'author',
             'creator',
             'featuredImage',
-        ]);
+        ])->where(function($q) {
+            // شرط إخفاء مقالات أي مستخدم (محرر، كاتب، إلخ) أو كاتب تم تعطيل حسابه
+            $q->where(function($sub) {
+                // إذا كان المقال مرتبط بـ creator، يجب أن يكون creator نشطاً
+                $sub->whereNull('created_by')
+                    ->orWhereHas('creator', function($creatorQuery) {
+                        $creatorQuery->where('status', 'active');
+                    });
+            })->where(function($sub2) {
+                // وإذا كان المقال مرتبط بـ author، يجب أن يكون author نشطاً أيضاً
+                $sub2->whereNull('author_id')
+                     ->orWhereHas('author', function($authorQuery) {
+                         $authorQuery->where('status', 'active');
+                     });
+            });
+        });
 
         // البحث
         if ($request->filled('q')) {
@@ -128,10 +140,7 @@ class ArticleController extends Controller
     }
 
     /**
-     * إنشاء مقال جديد.
-     *
-     * الأدمن والمحرر لا يختاران الكاتب.
-     * يتم تسجيل المستخدم الحالي في created_by.
+     * إنشاء مقال جديد (مع التحقق من أن حساب الكاتب نشط).
      */
     public function store(StoreArticleRequest $request)
     {
@@ -146,38 +155,36 @@ class ArticleController extends Controller
             ], 401);
         }
 
-        /*
-         * لا نأخذ author_id من Frontend.
-         *
-         * الأدمن والمحرر ينشئان المقال بدون اختيار كاتب.
-         * لذلك created_by هو المستخدم الحالي.
-         */
+        // التحقق مما إذا كان المستخدم أو الكاتب معطلاً
+        if ($user->status !== 'active') {
+            return response()->json([
+                'status' => false,
+                'message' => 'حسابك موقوف أو غير نشط، لا يمكنك نشر مقالات جديدة.',
+            ], 403);
+        }
+
+        // التحقق من بروفايل الكاتب إن وجد
+        $authorProfile = \App\Models\Author::where('user_id', $user->id)->first();
+        if ($authorProfile && $authorProfile->status !== 'active') {
+            return response()->json([
+                'status' => false,
+                'message' => 'بروفايل الكاتب الخاص بك معطل، لا يمكنك إضافة مقالات.',
+            ], 403);
+        }
+
         $validated['created_by'] = $user->id;
 
-        /*
-         * إذا لم يتم إرسال author_id، يبقى null.
-         * لا نربط المقال تلقائيًا بملف الكاتب للأدمن أو المحرر.
-         */
         if (!array_key_exists('author_id', $validated)) {
             $validated['author_id'] = null;
         }
 
-        /*
-         * إنشاء slug من العنوان.
-         */
         $validated['slug'] = Str::slug($request->title) . '-' . Str::random(5);
 
-        /*
-         * تاريخ النشر.
-         */
         $validated['published_at'] =
             ($validated['status'] ?? 'published') === 'published'
                 ? now()
                 : null;
 
-        /*
-         * رفع الصورة.
-         */
         if ($request->hasFile('image')) {
             $file = $request->file('image');
 
@@ -201,21 +208,12 @@ class ArticleController extends Controller
             $validated['featured_image_id'] = $media->id;
         }
 
-        /*
-         * إنشاء المقال.
-         */
         $article = Article::create($validated);
 
-        /*
-         * الوسوم.
-         */
         if ($request->has('tags')) {
             $article->tags()->attach($request->tags);
         }
 
-        /*
-         * إرسال إشعار للأدمن عند إنشاء مقال جديد.
-         */
         $admins = \App\Models\User::whereHas('role', function ($q) {
             $q->whereIn('name', ['admin', 'super-admin']);
         })->get();
@@ -229,9 +227,6 @@ class ArticleController extends Controller
             )
         );
 
-        /*
-         * سجل النشاط.
-         */
         ActivityLog::create([
             'user_id' => $user->id,
             'action_type' =>
@@ -246,9 +241,6 @@ class ArticleController extends Controller
             'target_url' => '/articles',
         ]);
 
-        /*
-         * إرجاع المقال مع الكاتب والمنشئ.
-         */
         return response()->json([
             'status' => true,
             'message' => __('Article created successfully'),

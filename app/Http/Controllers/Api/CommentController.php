@@ -21,7 +21,7 @@ class CommentController extends Controller
         return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
-        public function index(Request $request, $article = null)
+    public function index(Request $request, $article = null)
     {
         $query = Comment::with(['user.avatar', 'article'])->latest();
 
@@ -29,7 +29,6 @@ class CommentController extends Controller
             $query->whereHas('article', function($q) use ($article) {
                 $q->where('id', $article)->orWhere('slug', $article);
             });
-            // Public article view only shows approved comments
             $query->where('status', 'approved');
         }
 
@@ -55,8 +54,6 @@ class CommentController extends Controller
         }
 
         $comments = $query->paginate(15);
-        
-        // استخدام الـ Resource بدلاً من الإرجاع المباشر
         return CommentResource::collection($comments);
     }
 
@@ -68,12 +65,22 @@ class CommentController extends Controller
 
     public function store(StoreCommentRequest $request)
     {
+        $user = auth()->user();
+
+        // التحقق مما إذا كان المستخدم مسجلاً وحسابه موقوفاً أو غير نشط
+        if ($user && $user->status !== 'active') {
+            return response()->json([
+                'status'  => false,
+                'message' => 'حسابك موقوف أو غير نشط، لا يمكنك إضافة تعليقات.',
+            ], 403);
+        }
+
         $validatedData = $request->validated();
 
         $comment = Comment::create([
             'article_id'  => $validatedData['article_id'],
             'parent_id'   => $validatedData['parent_id'] ?? null,
-            'user_id'     => $validatedData['user_id'] ?? auth()->id(),
+            'user_id'     => $validatedData['user_id'] ?? $user?->id,
             'guest_name'  => $validatedData['guest_name'] ?? null,
             'guest_email' => $validatedData['guest_email'] ?? null,
             'content'     => $validatedData['content'],
@@ -84,7 +91,7 @@ class CommentController extends Controller
         \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\SystemAlert('تعليق جديد بانتظار المراجعة', 'info', '/admin/comments'));
 
         ActivityLog::create([
-            'user_id' => auth()->id() ?? 1,
+            'user_id' => $user?->id ?? 1,
             'action_type' => 'add_comment',
             'action_label' => $this->getActionPrefix() . 'إضافة تعليق جديد',
             'target_name' => \Str::limit($comment->content, 30),

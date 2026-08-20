@@ -29,7 +29,13 @@ class UserController extends Controller
     {
         $search = $request->input('search');
 
+        // جلب المستخدمين العاديين المسجلين فقط (المستثنى منهم الأدوار الإدارية)
         $users = User::with(['role', 'avatar'])
+            ->where(function ($q) {
+                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%user%'))
+                  ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%user%'))
+                  ->orWhereNull('role_id');
+            })
             ->when($search, function ($query, $search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('first_name', 'like', "%{$search}%")
@@ -43,35 +49,15 @@ class UserController extends Controller
             ->paginate(4);
 
         $stats = [
-            'total' => User::count(),
-            'active' => User::where('status', 'active')->count(),
-            'suspended' => User::where('status', 'suspended')->count(),
-            'inactive' => User::where('status', 'inactive')->count(),
-            'admins' => User::where(function ($q) {
-                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%admin%'))
-                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%admin%'));
-            })->count(),
-            'editors' => User::where(function ($q) {
-                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%editor%'))
-                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%editor%'));
-            })->count(),
-            'authors' => User::where(function ($q) {
-                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%author%'))
-                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%author%'));
-            })->count(),
-            'moderators' => User::where(function ($q) {
-                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%moderator%'))
-                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%moderator%'));
-            })->count(),
-            'users' => User::where(function ($q) {
-                $q->whereHas('role', fn($r) => $r->where('name', 'like', '%user%'))
-                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%user%'));
-            })->count(),
+            'total' => User::whereHas('role', fn($r) => $r->where('name', 'like', '%user%'))->count(),
+            'active' => User::where('status', 'active')->whereHas('role', fn($r) => $r->where('name', 'like', '%user%'))->count(),
+            'suspended' => User::where('status', 'suspended')->whereHas('role', fn($r) => $r->where('name', 'like', '%user%'))->count(),
+            'inactive' => User::where('status', 'inactive')->whereHas('role', fn($r) => $r->where('name', 'like', '%user%'))->count(),
         ];
 
         return response()->json([
             'status' => true,
-            'message' => 'تم جلب المستخدمين بنجاح',
+            'message' => 'تم جلب المستخدمين العاديين بنجاح',
             'data' => $users,
             'stats' => $stats,
         ], 200);
@@ -111,12 +97,6 @@ class UserController extends Controller
             $validatedData['created_by'] = $currentUserId;
 
             $user = User::create($validatedData);
-            if (isset($validatedData['role_id'])) {
-                $roleName = \App\Models\Role::find($validatedData['role_id'])?->name;
-                if ($roleName) {
-                    $user->syncRoles([$roleName]);
-                }
-            }
             return $user;
         });
 
@@ -137,7 +117,7 @@ class UserController extends Controller
 
     public function show($id)
     {
-        $user = User::with(['role', 'avatar', 'authorProfile'])->findOrFail($id);
+        $user = User::with(['role', 'avatar'])->findOrFail($id);
 
         return response()->json([
             'status' => true,
@@ -151,7 +131,7 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $validatedData = $request->validated();
 
-        $user = DB::transaction(function ($request, $validatedData, $user) {
+        $user = DB::transaction(function () use ($request, $validatedData, $user) {
             $currentUserId = auth()->id();
 
             if (request()->hasFile('avatar')) {
@@ -181,12 +161,6 @@ class UserController extends Controller
             $validatedData['updated_by'] = $currentUserId;
 
             $user->update($validatedData);
-            if (isset($validatedData['role_id'])) {
-                $roleName = \App\Models\Role::find($validatedData['role_id'])?->name;
-                if ($roleName) {
-                    $user->syncRoles([$roleName]);
-                }
-            }
 
             return $user;
         });
@@ -223,35 +197,6 @@ class UserController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'تم حذف المستخدم بنجاح',
-        ], 200);
-    }
-
-    public function changeRole(ChangeUserRoleRequest $request, User $user)
-    {
-        $validated = $request->validated();
-        $role = Role::findOrFail($validated['role_id']);
-
-        DB::transaction(function () use ($user, $role) {
-            $user->update([
-                'role_id'    => $role->id,
-                'updated_by' => auth()->id(),
-            ]);
-
-            $user->syncRoles([$role->name]);
-        });
-
-        ActivityLog::create([
-            'user_id' => auth()->id() ?? 1,
-            'action_type' => 'change_role',
-            'action_label' => $this->getActionPrefix() . 'تغيير دور المستخدم',
-            'target_name' => $user->first_name . ' (' . $role->name . ')',
-            'target_url' => '/users',
-        ]);
-
-        return response()->json([
-            'status'  => true,
-            'message' => 'تم تغيير دور المستخدم بنجاح.',
-            'data'    => $user->fresh()->load(['role', 'roles']),
         ], 200);
     }
 
