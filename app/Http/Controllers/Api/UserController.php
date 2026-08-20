@@ -25,9 +25,10 @@ class UserController extends Controller
         return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
-    public function index(Request $request)
+   public function index(Request $request)
     {
         $search = $request->input('search');
+        $status = $request->input('status'); // استقبال قيمة الفلتر (active أو inactive)
 
         // جلب المستخدمين العاديين المسجلين فقط (المستثنى منهم الأدوار الإدارية)
         $users = User::with(['role', 'avatar'])
@@ -35,6 +36,14 @@ class UserController extends Controller
                 $q->whereHas('role', fn($r) => $r->where('name', 'like', '%user%'))
                   ->orWhereHas('roles', fn($r) => $r->where('name', 'like', '%user%'))
                   ->orWhereNull('role_id');
+            })
+            ->when($status && $status !== 'all', function ($query) use ($status) {
+                if ($status === 'inactive') {
+                    // تصفية غير النشطين أو الموقوفين
+                    $query->whereIn('status', ['inactive', 'suspended']);
+                } else {
+                    $query->where('status', $status);
+                }
             })
             ->when($search, function ($query, $search) {
                 $query->where(function ($query) use ($search) {
