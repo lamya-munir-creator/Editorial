@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Models\ActivityLog;
 use App\Http\Requests\StoreSettingRequest;
 use App\Http\Requests\UpdateSettingRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
@@ -99,7 +100,7 @@ class SettingController extends Controller
 
         if ($request->hasFile('setting_value')) {
             $path = $request->file('setting_value')->store('settings', 'public');
-            $validatedData['setting_value'] = $path;
+            $validatedData['setting_value'] = '/storage/' . $path;
         }
 
         $validatedData['is_public']  = $validatedData['is_public'] ?? false;
@@ -111,7 +112,7 @@ class SettingController extends Controller
             'user_id' => auth()->id() ?? 1,
             'action_type' => 'system_settings',
             'action_label' => $this->getActionPrefix() . 'إنشاء إعداد جديد',
-            'target_name' => $setting->key ?? 'إعداد نظام',
+            'target_name' => $setting->setting_key ?? 'إعداد نظام',
             'target_url' => '/settings',
         ]);
 
@@ -122,29 +123,79 @@ class SettingController extends Controller
         ], 201);
     }
 
-    public function update(UpdateSettingRequest $request, $id)
+    /**
+     * تحديث إعداد فردي أو تحديث جماعي للإعدادات (شامل رفع الشعار والأيقونة WebP)
+     */
+    public function update(Request $request, $id = null)
     {
-        $setting = Setting::findOrFail($id);
-        $validatedData = $request->validated();
+        // إذا تم إرسال طلب تحديث جماعي للإعدادات عبر المفاتيح (مثل site_logo و site_name)
+        if (!$id && $request->hasAny(Setting::pluck('setting_key')->toArray())) {
+            $data = $request->except('_token', '_method');
+            
+            foreach ($data as $key => $value) {
+                $setting = Setting::where('setting_key', $key)->first();
+                if ($setting) {
+                    if ($request->hasFile($key)) {
+                        // حذف الصورة القديمة إن وجدت
+                        if ($setting->setting_value && str_starts_with($setting->setting_value, '/storage/')) {
+                            $oldPath = str_replace('/storage/', '', $setting->setting_value);
+                            if (Storage::disk('public')->exists($oldPath)) {
+                                Storage::disk('public')->delete($oldPath);
+                            }
+                        }
+                        $path = $request->file($key)->store('settings', 'public');
+                        $setting->update([
+                            'setting_value' => '/storage/' . $path,
+                            'updated_by' => auth()->id() ?? 1
+                        ]);
+                    } elseif ($value !== null && $value !== 'null') {
+                        $setting->update([
+                            'setting_value' => $value,
+                            'updated_by' => auth()->id() ?? 1
+                        ]);
+                    }
+                }
+            }
 
+            ActivityLog::create([
+                'user_id' => auth()->id() ?? 1,
+                'action_type' => 'system_settings',
+                'action_label' => $this->getActionPrefix() . 'تعديل إعدادات النظام والهوية',
+                'target_name' => 'إعدادات النظام',
+                'target_url' => '/settings',
+            ]);
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'تم حفظ الإعدادات والهوية البصرية بنجاح.'
+            ], 200);
+        }
+
+        // التحديث التقليدي بإرسال الـ ID
+        $setting = Setting::findOrFail($id);
+        
         if ($request->hasFile('setting_value')) {
-            if ($setting->setting_value && Storage::disk('public')->exists($setting->setting_value)) {
-                Storage::disk('public')->delete($setting->setting_value);
+            if ($setting->setting_value && str_starts_with($setting->setting_value, '/storage/')) {
+                $oldPath = str_replace('/storage/', '', $setting->setting_value);
+                if (Storage::disk('public')->exists($oldPath)) {
+                    Storage::disk('public')->delete($oldPath);
+                }
             }
 
             $path = $request->file('setting_value')->store('settings', 'public');
-            $validatedData['setting_value'] = $path;
+            $setting->setting_value = '/storage/' . $path;
+        } elseif ($request->has('setting_value')) {
+            $setting->setting_value = $request->input('setting_value');
         }
 
-        $validatedData['updated_by'] = auth()->id() ?? 1;
-
-        $setting->update($validatedData);
+        $setting->updated_by = auth()->id() ?? 1;
+        $setting->save();
 
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
             'action_type' => 'system_settings',
-            'action_label' => $this->getActionPrefix() . 'تعديل إعدادات النظام',
-            'target_name' => $setting->key ?? 'إعدادات النظام',
+            'action_label' => $this->getActionPrefix() . 'تعديل إعداد',
+            'target_name' => $setting->setting_key ?? 'إعدادات النظام',
             'target_url' => '/settings',
         ]);
 
@@ -158,10 +209,13 @@ class SettingController extends Controller
     public function destroy($id)
     {
         $setting = Setting::findOrFail($id);
-        $keyName = $setting->key ?? 'إعداد نظام';
+        $keyName = $setting->setting_key ?? 'إعداد نظام';
 
-        if ($setting->setting_value && Storage::disk('public')->exists($setting->setting_value)) {
-            Storage::disk('public')->delete($setting->setting_value);
+        if ($setting->setting_value && str_starts_with($setting->setting_value, '/storage/')) {
+            $oldPath = str_replace('/storage/', '', $setting->setting_value);
+            if (Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
         }
 
         $setting->delete();
