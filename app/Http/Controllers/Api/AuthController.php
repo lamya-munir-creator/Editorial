@@ -223,7 +223,11 @@ class AuthController extends Controller
 
     private function createUserFromRequest(Request $request, array $validated, bool $isOtpFlow = false): User
     {
-        $defaultRoleId = Role::query()->where('name', 'user')->value('id') ?? 1;
+        // For public registration, we strictly enforce the 'user' role
+        // to prevent privilege escalation from client-provided role data.
+        $defaultRole = Role::query()->where('name', 'user')->first();
+        $defaultRoleId = $defaultRole ? $defaultRole->id : 1;
+
         $firstName = $request->input('first_name', $request->input('name', 'User'));
         $lastName = $request->input('last_name');
         $username = $request->input('username')
@@ -234,7 +238,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'uuid' => (string) Str::uuid(),
-            'role_id' => $request->input('role_id', $defaultRoleId),
+            'role_id' => $defaultRoleId,
             'first_name' => $firstName,
             'last_name' => $lastName,
             'username' => $username,
@@ -243,13 +247,8 @@ class AuthController extends Controller
             'status' => $isOtpFlow ? 'inactive' : 'active',
         ]);
 
-        $targetRole = $request->input('role');
-        if (! $targetRole && $request->filled('role_id')) {
-            $targetRole = Role::query()->where('id', $request->role_id)->value('name');
-        }
-
-        if ($targetRole && Role::query()->where('name', $targetRole)->exists()) {
-            $user->assignRole($targetRole);
+        if ($defaultRole) {
+            $user->assignRole($defaultRole->name);
         }
 
         return $user;
