@@ -19,6 +19,7 @@ class AuthorApplication extends Model
         'biography',
         'website',
         'application_message',
+        'avatar_id',
         'status',
         'admin_notes',
         'reviewed_by',
@@ -46,5 +47,11 @@ class AuthorApplication extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    // إضافة علاقة الـ avatar لربطها بجدول الـ Media
+    public function avatar(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'avatar_id');
     }
 }

@@ -31,7 +31,7 @@ class AuthorController extends Controller
     {
         $search = $request->input('search');
 
-        $authors = Author::with(['avatar', 'user'])
+        $authors = Author::with(['avatar', 'user.role'])
             ->withCount('articles')
             ->when($search, function ($query, $search) {
                 return $query->where('display_name', 'like', "%{$search}%")
@@ -121,8 +121,10 @@ class AuthorController extends Controller
             'last_name'    => 'required|string|max:100',
             'username'     => 'required|string|max:100|unique:users,username',
             'email'        => 'required|email|max:255|unique:users,email',
-            'password'     => 'nullable|string|min:6', // جعلناها اختيارية لكي يتم توليدها تلقائياً
+            'password'     => 'nullable|string|min:6',
             'role'         => 'required|string',
+            'job_title'    => 'nullable|string|max:150',
+            'website'      => 'nullable|string|max:255',
             'display_name' => 'required|string|max:255',
             'biography'    => 'nullable|string',
             'gender'       => 'required|in:male,female,other',
@@ -132,7 +134,6 @@ class AuthorController extends Controller
         $author = DB::transaction(function () use ($request) {
             $currentUserId = auth()->id() ?? 1;
 
-            // توليد كلمة سر عشوائية قوية تلقائياً إذا لم يتم إدخالها يدوياً
             $plainPassword = $request->filled('password') ? $request->password : Str::random(10);
 
             $role = \App\Models\Role::where('name', $request->role)->first();
@@ -181,7 +182,8 @@ class AuthorController extends Controller
                 'user_id'      => $user->id,
                 'display_name' => $request->display_name,
                 'slug'         => Str::slug($request->display_name) . '-' . Str::random(6),
-                'job_title'    => $request->role,
+                'job_title'    => $request->job_title,
+                'website'      => $request->website,
                 'biography'    => $request->biography,
                 'gender'       => $request->gender,
                 'status'       => $request->status,
@@ -189,7 +191,6 @@ class AuthorController extends Controller
                 'created_by'   => $currentUserId,
             ]);
 
-            // إرسال كلمة المرور (المولدة أو المدخلة) إلى بريد المستخدم الإلكتروني
             try {
                 \Illuminate\Support\Facades\Mail::raw(
                     "مرحباً {$request->first_name},\n\nتم إنشاء حسابك بنجاح في منصة لومين.\nبريدك الإلكتروني: {$request->email}\nكلمة المرور الخاصة بك هي: {$plainPassword}\n\nيمكنك تسجيل الدخول وتغيير كلمة المرور الخاصة بك في أي وقت.",
@@ -216,7 +217,7 @@ class AuthorController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'تم إضافة الكاتب وإنشاء حسابه وتوليد كلمة المرور وإرسالها إلى بريده بنجاح',
-            'data' => $author->load(['avatar', 'user']),
+            'data' => $author->load(['avatar', 'user.role']),
         ], 201);
     }
 
@@ -259,39 +260,55 @@ class AuthorController extends Controller
                 $validatedData['avatar_id'] = null;
             }
 
-            unset($validatedData['avatar']);
+            unset($validatedData['avatar'], $validatedData['role']);
             $validatedData['updated_by'] = $userId;
 
             if (isset($validatedData['display_name'])) {
                 $validatedData['slug'] = Str::slug($validatedData['display_name']) . '-' . Str::random(6);
             }
 
-            // تحديث الدور والمسمى الوظيفي إذا تم ارسالهما
-            if ($request->filled('role')) {
-                $validatedData['job_title'] = $request->role;
+            if ($request->has('job_title')) {
+                $validatedData['job_title'] = $request->job_title;
             }
 
             $author->update($validatedData);
 
-            // تحديث دور وحالة المستخدم المرتبط ببروفايل الكاتب في جدول users
+            // تحديث بيانات المستخدم المرتبط (بما فيها الاسم الأول واسم العائلة والدور والحالة)
             if ($author->user) {
                 $userData = [];
-                if ($request->filled('role')) {
-                    $role = \App\Models\Role::where('name', $request->role)->first();
-                    if ($role) {
-                        $userData['role_id'] = $role->id;
-                    }
-                    $author->user->syncRoles([$request->role]);
+                
+                if ($request->filled('first_name')) {
+                    $userData['first_name'] = $request->first_name;
+                }
+                if ($request->filled('last_name')) {
+                    $userData['last_name'] = $request->last_name;
+                }
+                if ($request->filled('username')) {
+                    $userData['username'] = $request->username;
+                }
+                if ($request->filled('email')) {
+                    $userData['email'] = $request->email;
                 }
                 if (isset($validatedData['status'])) {
                     $userData['status'] = $validatedData['status'];
                 }
+
+                if ($request->filled('role')) {
+                    $roleName = $request->role;
+                    $role = \App\Models\Role::where('name', $roleName)->first();
+                    if ($role) {
+                        $userData['role_id'] = $role->id;
+                    }
+                    if (method_exists($author->user, 'syncRoles')) {
+                        $author->user->syncRoles([$roleName]);
+                    }
+                }
+
                 if (!empty($userData)) {
                     $author->user->update($userData);
                 }
             }
 
-            // إذا تحول الدور إلى كاتب، نتأكد من ربط مقالاته السابقة التي كتبها بـ created_by برقم الـ author_id الخاص به
             if ($request->filled('role') && strtolower($request->role) === 'author') {
                 \App\Models\Article::where('created_by', $author->user_id)
                     ->whereNull('author_id')

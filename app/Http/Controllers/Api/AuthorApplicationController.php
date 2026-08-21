@@ -7,6 +7,7 @@ use App\Models\Author;
 use App\Models\AuthorApplication;
 use App\Models\Role;
 use App\Models\ActivityLog;
+use App\Models\Media;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -51,6 +52,30 @@ class AuthorApplicationController extends Controller
 
         $validatedData = $request->validated();
 
+        $avatarId = null;
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+            $path = $file->store('author-applications', 'public');
+
+            $media = Media::create([
+                'uuid' => Str::uuid(),
+                'uploaded_by' => $user->id,
+                'file_name' => basename($path),
+                'original_name' => $file->getClientOriginalName(),
+                'disk' => 'public',
+                'path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'extension' => $file->getClientOriginalExtension(),
+                'file_size' => $file->getSize(),
+                'alt_text' => $validatedData['display_name'],
+                'type' => 'image',
+                'visibility' => 'public',
+                'created_by' => $user->id,
+            ]);
+
+            $avatarId = $media->id;
+        }
+
         $application = $user->authorApplications()->create([
             'uuid' => (string) Str::uuid(),
             'display_name' => $validatedData['display_name'],
@@ -58,6 +83,8 @@ class AuthorApplicationController extends Controller
             'biography' => $validatedData['biography'] ?? null,
             'website' => $validatedData['website'] ?? null,
             'application_message' => $validatedData['application_message'] ?? null,
+            'gender' => $validatedData['gender'] ?? 'other',
+            'avatar_id' => $avatarId,
             'status' => 'pending',
         ]);
 
@@ -75,7 +102,7 @@ class AuthorApplicationController extends Controller
         return response()->json([
             'status' => true,
             'message' => 'تم إرسال طلب الانضمام ككاتب بنجاح.',
-            'data' => $application,
+            'data' => $application->load('avatar'),
         ], 201);
     }
 
@@ -83,7 +110,7 @@ class AuthorApplicationController extends Controller
     {
         $application = $request->user()
             ->authorApplications()
-            ->with('reviewer:id,first_name,last_name,username')
+            ->with(['reviewer:id,first_name,last_name,username', 'avatar'])
             ->latest()
             ->first();
 
@@ -101,6 +128,7 @@ class AuthorApplicationController extends Controller
         $query = AuthorApplication::with([
             'user:id,first_name,last_name,username,email',
             'reviewer:id,first_name,last_name,username',
+            'avatar',
         ])->latest();
 
         if ($request->filled('status')) {
@@ -141,6 +169,7 @@ class AuthorApplicationController extends Controller
         $application->load([
             'user:id,uuid,role_id,first_name,last_name,username,email,phone,avatar_id,locale,status',
             'reviewer:id,uuid,first_name,last_name,username',
+            'avatar',
         ]);
 
         return response()->json([
@@ -201,6 +230,8 @@ class AuthorApplicationController extends Controller
                     'biography' => $application->biography,
                     'job_title' => $application->job_title,
                     'website' => $application->website,
+                    'avatar_id' => $application->avatar_id,
+                    'gender' => $application->gender,
                     'status' => 'active',
                     'created_by' => $admin->id,
                 ]);

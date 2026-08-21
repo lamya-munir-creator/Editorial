@@ -48,6 +48,13 @@ class StoreAuthorApplicationRequest extends FormRequest
                 'nullable',
                 'string',
             ],
+
+            'avatar' => [
+                'nullable',
+                'image',
+                'mimes:jpeg,png,jpg,webp',
+                'max:2048',
+            ],
         ];
     }
 
@@ -86,6 +93,15 @@ class StoreAuthorApplicationRequest extends FormRequest
 
             'application_message.string' =>
                 'رسالة التقديم يجب أن تكون نصًا.',
+
+            'avatar.image' =>
+                'الملف الشخصي يجب أن يكون صورة.',
+
+            'avatar.mimes' =>
+                'صيغة الصورة يجب أن تكون من نوع: jpeg, png, jpg, webp.',
+
+            'avatar.max' =>
+                'حجم الصورة يجب ألا يزيد عن 2 ميجابايت.',
         ];
     }
 }
