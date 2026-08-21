@@ -36,28 +36,14 @@ class ArticleController extends Controller
 
     public function index(Request $request)
     {
+        // استخدام الـ Scope المدمج في الموديل لإخفاء مقالات المعطلين
         $query = Article::with([
             'category',
             'tags',
             'author',
             'creator',
             'featuredImage',
-        ])->where(function($q) {
-            // شرط إخفاء مقالات أي مستخدم (محرر، كاتب، إلخ) أو كاتب تم تعطيل حسابه
-            $q->where(function($sub) {
-                // إذا كان المقال مرتبط بـ creator، يجب أن يكون creator نشطاً
-                $sub->whereNull('created_by')
-                    ->orWhereHas('creator', function($creatorQuery) {
-                        $creatorQuery->where('status', 'active');
-                    });
-            })->where(function($sub2) {
-                // وإذا كان المقال مرتبط بـ author، يجب أن يكون author نشطاً أيضاً
-                $sub2->whereNull('author_id')
-                     ->orWhereHas('author', function($authorQuery) {
-                         $authorQuery->where('status', 'active');
-                     });
-            });
-        });
+        ])->withActiveAuthorOrCreator();
 
         // البحث
         if ($request->filled('q')) {
@@ -139,13 +125,9 @@ class ArticleController extends Controller
         ]);
     }
 
-    /**
-     * إنشاء مقال جديد (مع التحقق من أن حساب الكاتب نشط).
-     */
     public function store(StoreArticleRequest $request)
     {
         $validated = $request->validated();
-
         $user = auth()->user();
 
         if (!$user) {
@@ -155,7 +137,6 @@ class ArticleController extends Controller
             ], 401);
         }
 
-        // التحقق مما إذا كان المستخدم أو الكاتب معطلاً
         if ($user->status !== 'active') {
             return response()->json([
                 'status' => false,
@@ -163,7 +144,6 @@ class ArticleController extends Controller
             ], 403);
         }
 
-        // التحقق من بروفايل الكاتب إن وجد
         $authorProfile = \App\Models\Author::where('user_id', $user->id)->first();
         if ($authorProfile && $authorProfile->status !== 'active') {
             return response()->json([
@@ -187,7 +167,6 @@ class ArticleController extends Controller
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-
             $path = $file->store('articles', 'public');
 
             $media = Media::create([
@@ -256,11 +235,18 @@ class ArticleController extends Controller
         ], 201);
     }
 
-    /**
-     * عرض مقال واحد.
-     */
     public function show(Article $article)
     {
+        $author = $article->author;
+        $creator = $article->creator;
+
+        if (($author && $author->status !== 'active') || ($creator && $creator->status !== 'active')) {
+            return response()->json([
+                'status' => false,
+                'message' => 'عذراً، هذا المقال غير متاح حالياً.',
+            ], 404);
+        }
+
         $article->increment('views_count');
 
         $article->load([
@@ -277,9 +263,6 @@ class ArticleController extends Controller
         ]);
     }
 
-    /**
-     * تحديث مقال.
-     */
     public function update(UpdateArticleRequest $request, Article $article)
     {
         $this->authorize('update', $article);
@@ -294,7 +277,6 @@ class ArticleController extends Controller
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-
             $path = $file->store('articles', 'public');
 
             $media = Media::create([
@@ -321,9 +303,6 @@ class ArticleController extends Controller
             $article->tags()->sync($request->tags);
         }
 
-        /*
-         * إشعار صاحب المقال الأصلي إذا قام شخص آخر بتعديله.
-         */
         if (
             $article->author &&
             $article->author->user &&
@@ -361,9 +340,6 @@ class ArticleController extends Controller
         ], 200);
     }
 
-    /**
-     * حذف مقال.
-     */
     public function destroy(Article $article)
     {
         $this->authorize('delete', $article);
@@ -387,14 +363,12 @@ class ArticleController extends Controller
         ], 200);
     }
 
-    /**
-     * المقالات ذات الصلة.
-     */
     public function related(Article $article)
     {
         $tagIds = $article->tags->pluck('id')->toArray();
 
         $relatedArticles = Article::published()
+            ->withActiveAuthorOrCreator()
             ->where('id', '!=', $article->id)
             ->where(function ($query) use ($article, $tagIds) {
                 $query->where('category_id', $article->category_id);

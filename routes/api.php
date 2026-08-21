@@ -35,12 +35,16 @@ Route::post('/verify-otp', [AuthController::class, 'verifyEmailOtp']);
 Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('/login', [AuthController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
+
+// أضفنا 'user.active' هنا بجانب 'auth:sanctum'
+// لكي يتم منع أي مستخدم أو كاتب معطل من تسجيل الخروج أو جلب بياناته الشخصية
+Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
 });
 
-Route::middleware(['auth:sanctum'])->group(function () {
+// وهنا أيضاً أضفنا الحماية لسجل النشاطات
+Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::get('/activity-logs', [ActivityLogController::class, 'index']);
 });
 

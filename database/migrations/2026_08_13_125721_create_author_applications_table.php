@@ -26,6 +26,15 @@ return new class extends Migration
             $table->string('job_title', 150)->nullable();
             $table->text('biography')->nullable();
             $table->string('website', 255)->nullable();
+            
+            // Gender field added safely
+            $table->enum('gender', ['male', 'female', 'other'])->nullable();
+
+            // Avatar image relation
+            $table->foreignId('avatar_id')
+                ->nullable()
+                ->constrained('media')
+                ->nullOnDelete();
 
             // Why the user wants to become an author
             $table->text('application_message')->nullable();

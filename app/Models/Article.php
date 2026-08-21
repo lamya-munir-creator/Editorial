@@ -69,6 +69,22 @@ class Article extends Model
             ->where('published_at', '<=', now());
     }
 
+    // Scope لإخفاء مقالات المستخدمين أو الكتّاب المعطلين
+    public function scopeWithActiveAuthorOrCreator($query)
+    {
+        return $query->where(function($q) {
+            $q->whereNull('created_by')
+              ->orWhereHas('creator', function($creatorQuery) {
+                  $creatorQuery->where('status', 'active');
+              });
+        })->where(function($q2) {
+            $q2->whereNull('author_id')
+               ->orWhereHas('author', function($authorQuery) {
+                   $authorQuery->where('status', 'active');
+               });
+        });
+    }
+
     // Relationships
 
     public function author(): BelongsTo
