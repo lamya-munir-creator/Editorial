@@ -61,7 +61,10 @@ class AuthorApplicationController extends Controller
             'status' => 'pending',
         ]);
 
-        $admins = User::whereHas('role', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })->get();
+        $admins = User::whereHas('roles', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })
+            ->orWhereHas('role', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })
+            ->get();
+            
         Notification::send($admins, new SystemAlert('طلب انضمام كاتب جديد من ' . $application->display_name, 'info', '/admin/author-applications'));
 
         ActivityLog::create([
@@ -172,13 +175,25 @@ class AuthorApplicationController extends Controller
                     throw new \RuntimeException('هذا المستخدم لديه ملف كاتب بالفعل.');
                 }
 
-                $role = Role::where('slug', 'author')
-                    ->orWhere('name', 'author')
+                // البحث الآمن عن دور الكاتب
+                $role = Role::whereRaw('LOWER(name) = ?', ['author'])
+                    ->orWhereRaw('LOWER(slug) = ?', ['author'])
                     ->first();
 
                 if (!$role) {
                     throw new \RuntimeException('دور الكاتب غير موجود في قاعدة البيانات.');
                 }
+
+                // تنظيف وإزالة أي طلبات معلقة أخرى قديمة لنفس المستخدم
+                $user->authorApplications()
+                    ->where('id', '!=', $application->id)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'rejected',
+                        'admin_notes' => 'تم رفضه تلقائياً بسبب الموافقة على طلب أحدث.',
+                        'reviewed_by' => $admin->id,
+                        'reviewed_at' => now(),
+                    ]);
 
                 $baseSlug = Str::slug($application->display_name);
                 if ($baseSlug === '') {
@@ -193,24 +208,29 @@ class AuthorApplicationController extends Controller
                     $counter++;
                 }
 
-                $author = Author::create([
-                    'uuid' => (string) Str::uuid(),
-                    'user_id' => $user->id,
-                    'display_name' => $application->display_name,
-                    'slug' => $slug,
-                    'biography' => $application->biography,
-                    'job_title' => $application->job_title,
-                    'website' => $application->website,
-                    'status' => 'active',
-                    'created_by' => $admin->id,
-                ]);
+                // إنشاء بروفايل الكاتب
+               $author = Author::updateOrCreate(
+    ['user_id' => $user->id], // المفتاح الفريد للبحث (إذا كان موجوداً لن يكرره)
+    [
+        'uuid' => (string) Str::uuid(),
+        'display_name' => $application->display_name,
+        'slug' => $slug,
+        'biography' => $application->biography,
+        'job_title' => $application->job_title,
+        'website' => $application->website,
+        'status' => 'active',
+        'created_by' => $admin->id,
+    ]
+);
 
+                // تحديث جدول users وإزالة الأدوار القديمة تماماً وإعطاء دور الكاتب
                 $user->update([
                     'role_id' => $role->id,
                     'updated_by' => $admin->id,
                 ]);
 
-                $user->assignRole($role->name);
+                // استبدال أي أدوار سابقة بدور الكاتب نظيفاً عبر Spatie
+                $user->syncRoles([$role->name]);
 
                 $application->update([
                     'status' => 'approved',

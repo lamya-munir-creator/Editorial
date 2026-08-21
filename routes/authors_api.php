@@ -1,64 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthorController;
+use App\Http\Controllers\Api\AuthorArticleController;
 
-/*
-|--------------------------------------------------------------------------
-| Authors Routes
-|--------------------------------------------------------------------------
-|
-| مسارات بروفايلات الكُتّاب.
-|
-| المستخدم المسجل الذي لديه بروفايل كاتب:
-| - يستطيع مشاهدة بروفايله الخاص وتعديله (/authors/me)
-|
-| عام (بدون تسجيل دخول):
-| - استعراض قائمة الكُتّاب وصفحاتهم العامة
-|
-| الأدمن:
-| - إضافة/تعديل/حذف أي بروفايل كاتب
-|
-|--------------------------------------------------------------------------
-*/
-
-// ========================================================================
-// المستخدم المسجل: بروفايله الشخصي كـ "كاتب"
-// ملاحظة: يجب تعريف /authors/me قبل /authors/{author} حتى لا يفسَّر
-// "me" كمعرّف Route Model Binding.
-// ========================================================================
-
-Route::middleware('auth:sanctum')->group(function () {
-
-    Route::get('/authors/me', [AuthorController::class, 'me']);
-
-    Route::patch('/authors/me', [AuthorController::class, 'updateMe']);
-});
-
-// ========================================================================
-// عام: استعراض الكُتّاب وصفحاتهم العامة
-// ========================================================================
-
-Route::get('/authors', [AuthorController::class, 'index'])
-    ->name('authors.index');
-
-Route::get('/authors/slug/{slug}', [AuthorController::class, 'showBySlug']);
-
-Route::get('/authors/{author}', [AuthorController::class, 'show'])
-    ->name('authors.show');
-
-// ========================================================================
-// إدارة الكُتّاب - Admin فقط
-// ========================================================================
-
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
-
-    Route::post('/authors', [AuthorController::class, 'store'])
-        ->name('authors.store');
-
-    Route::match(['put', 'patch'], '/authors/{author}', [AuthorController::class, 'update'])
-        ->name('authors.update');
-
-    Route::delete('/authors/{author}', [AuthorController::class, 'destroy'])
-        ->name('authors.destroy');
+// مسارات مقالات الكاتب - يجب أن تكون محمية بصلاحية الكاتب (author) وليس الـ admin
+Route::middleware(['auth:sanctum', 'role:author|admin'])->group(function () {
+    Route::get('/author/articles', [AuthorArticleController::class, 'index']);
+    Route::post('/author/articles', [AuthorArticleController::class, 'store']);
+    Route::get('/author/articles/{article}', [AuthorArticleController::class, 'show']);
+    Route::match(['put', 'patch'], '/author/articles/{article}', [AuthorArticleController::class, 'update']);
+    Route::delete('/author/articles/{article}', [AuthorArticleController::class, 'destroy']);
+    Route::post('/author/articles/{article}/submit-review', [AuthorArticleController::class, 'submitForReview']);
 });

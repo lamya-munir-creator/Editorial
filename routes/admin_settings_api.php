@@ -21,8 +21,7 @@ Route::post('/contact-messages', [ContactMessageController::class, 'store']);
 // مسار الإعدادات العامة للموقع
 Route::get('/public/settings', [SettingController::class, 'publicSettings']);
 
-Route::middleware(['auth:sanctum', 'role:admin|editor|moderator'])->group(function () {
-    // إحصائيات وبحث لوحة التحكم
+Route::middleware(['auth:sanctum'])->group(function () {    // إحصائيات وبحث لوحة التحكم
     Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'stats']);
     Route::get('/search', [\App\Http\Controllers\Api\GlobalSearchController::class, 'search']);
     
