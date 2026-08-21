@@ -17,7 +17,7 @@ class ChangeUserStatusRequest extends FormRequest
         return [
             'status' => [
                 'required',
-                Rule::in(['active', 'suspended']),
+                Rule::in(['active', 'inactive']),
             ],
         ];
     }
