@@ -17,23 +17,32 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        $this->call([
-            RoleSeeder::class,
-            UserSeeder::class,
-            AuthorSeeder::class,
-            AuthorApplicationSeeder::class,
-            CategorySeeder::class,
-            TagSeeder::class,
-            ArticleSeeder::class,
-            PageSeeder::class,
-            CommentSeeder::class,
-            ContactMessageSeeder::class,
-            NewsletterSubscriberSeeder::class,
-            MenuSeeder::class,
-            MenuItemSeeder::class,
-            MediaSeeder::class,
-            SettingSeeder::class,
-            AdvertisementSeeder::class,
-        ]);
+      $this->call([
+    RoleSeeder::class,
+    UserSeeder::class,
+
+    // الصور أولًا لأن Authors و Articles يعتمدون عليها
+    MediaSeeder::class,
+
+    CategorySeeder::class,
+    TagSeeder::class,
+
+    AuthorSeeder::class,
+    AuthorApplicationSeeder::class,
+
+    ArticleSeeder::class,
+    CommentSeeder::class,
+
+    PageSeeder::class,
+
+    ContactMessageSeeder::class,
+    NewsletterSubscriberSeeder::class,
+
+    MenuSeeder::class,
+    MenuItemSeeder::class,
+
+    SettingSeeder::class,
+    AdvertisementSeeder::class,
+]);
     }
 }
