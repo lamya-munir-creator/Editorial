@@ -23,6 +23,7 @@ class NotificationController extends Controller
                 'id' => $notification->id,
                 'text' => $notification->data['message'] ?? 'إشعار جديد',
                 'type' => $notification->data['type'] ?? 'info',
+                'url' => $notification->data['url'] ?? '#',
                 'time' => $notification->created_at->diffForHumans(),
                 'isRead' => $notification->read_at !== null,
                 'created_at' => $notification->created_at

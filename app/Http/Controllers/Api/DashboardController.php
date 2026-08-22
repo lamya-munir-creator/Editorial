@@ -8,6 +8,8 @@ use App\Models\Comment;
 use App\Models\ContactMessage;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+
 
 class DashboardController extends Controller
 {
@@ -19,6 +21,8 @@ class DashboardController extends Controller
         $draftArticles = Article::where('status', 'draft')->count();
         $scheduledArticles = Article::where('status', 'published')->where('published_at', '>', now())->count(); // Assuming scheduled means published but published_at is in future, or just return 0 if not handled
         $totalViews = Article::sum('views_count');
+        $liveVisitors = DB::table('sessions')->where('last_activity', '>=', time() - 900)->count();
+
 
         // 2. Top Read Articles (Trending)
         $topArticles = Article::with('author.user:id,first_name,last_name')
@@ -46,7 +50,7 @@ class DashboardController extends Controller
             $activities->push([
                 'title' => $article->status === 'published' ? 'تم نشر مقال جديد' : 'تم إضافة مسودة مقال',
                 'info' => "المقال: \"{$article->title}\" • " . $article->created_at->diffForHumans(),
-                'dotBg' => $article->status === 'published' ? 'bg-primary' : 'bg-warning',
+                'dotBg' => $article->status === 'published' ? 'bg-[#8c6239]' : 'bg-amber-500',
                 'created_at' => $article->created_at
             ]);
         }
@@ -57,7 +61,8 @@ class DashboardController extends Controller
             $activities->push([
                 'title' => 'رسالة تواصل جديدة',
                 'info' => "من {$message->name} • " . $message->created_at->diffForHumans(),
-                'dotBg' => 'bg-success',
+                // تغيير اللون هنا
+                'dotBg' => 'bg-emerald-500',
                 'created_at' => $message->created_at
             ]);
         }
@@ -69,10 +74,11 @@ class DashboardController extends Controller
             $activities->push([
                 'title' => 'تعليق جديد',
                 'info' => "بواسطة {$userName} • " . $comment->created_at->diffForHumans(),
-                'dotBg' => 'bg-secondary',
+                'dotBg' => 'bg-stone-500',
                 'created_at' => $comment->created_at
             ]);
         }
+
 
         // Sort activities by date descending and take top 4
         $latestActivities = $activities->sortByDesc('created_at')->take(4)->values()->map(function ($item) {
@@ -80,10 +86,10 @@ class DashboardController extends Controller
             return $item;
         });
 
-        return response()->json([
+            return response()->json([
             'stats' => [
                 'total_views' => $totalViews,
-                'live_visitors' => rand(1200, 1500), // Mocked for now
+                'live_visitors' => $liveVisitors,
                 'articles' => [
                     'published' => $publishedArticles,
                     'drafts' => $draftArticles,

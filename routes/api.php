@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ActivityLogController;
 
@@ -41,6 +42,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware(['auth:sanctum', 'user.active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
+    
+    // مسار البحث الشامل 🚀
+    Route::get('/search', [SearchController::class, 'globalSearch']);
 });
 
 // وهنا أيضاً أضفنا الحماية لسجل النشاطات

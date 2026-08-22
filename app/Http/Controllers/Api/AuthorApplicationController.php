@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Notifications\SystemAlert;
 use Illuminate\Support\Facades\Notification;
+use App\Notifications\SystemNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use App\Http\Requests\StoreAuthorApplicationRequest;
@@ -27,7 +28,7 @@ class AuthorApplicationController extends Controller
         return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
-    public function store(StoreAuthorApplicationRequest $request): JsonResponse
+        public function store(StoreAuthorApplicationRequest $request): JsonResponse
     {
         $this->authorize('create', AuthorApplication::class);
         $user = $request->user();
@@ -92,7 +93,13 @@ class AuthorApplicationController extends Controller
             ->orWhereHas('role', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })
             ->get();
             
-        Notification::send($admins, new SystemAlert('طلب انضمام كاتب جديد من ' . $application->display_name, 'info', '/admin/author-applications'));
+        // --- نظام الإشعارات الجديد (طلب انضمام) ---
+        Notification::send($admins, new \App\Notifications\SystemNotification(
+            'هناك طلب انضمام للمستخدم (' . $application->display_name . ')', 
+            'info', 
+            '/admin/author-applications'
+        ));
+        // ----------------------------------------
 
         ActivityLog::create([
             'user_id' => $user->id,
@@ -108,6 +115,7 @@ class AuthorApplicationController extends Controller
             'data' => $application->load('avatar'),
         ], 201);
     }
+
 
     public function mine(Request $request): JsonResponse
     {
@@ -182,7 +190,7 @@ class AuthorApplicationController extends Controller
         ], 200);
     }
 
-    public function approve(Request $request, AuthorApplication $application): JsonResponse
+        public function approve(Request $request, AuthorApplication $application): JsonResponse
     {
         $this->authorize('review', $application);
         if ($application->status !== 'pending') {
@@ -274,7 +282,13 @@ class AuthorApplicationController extends Controller
                 ];
             });
 
-            $application->user->notify(new SystemAlert('تمت الموافقة على طلب انضمامك ككاتب!', 'success', '/author/dashboard'));
+            // --- نظام الإشعارات الجديد (موافقة) ---
+            $application->user->notify(new \App\Notifications\SystemNotification(
+                'تمت الموافقة على طلب انضمامك ككاتب!', 
+                'success', 
+                '/author/dashboard'
+            ));
+            // ----------------------------------------
             
             ActivityLog::create([
                 'user_id' => $admin->id,
@@ -303,7 +317,7 @@ class AuthorApplicationController extends Controller
         }
     }
 
-    public function reject(Request $request, AuthorApplication $application): JsonResponse
+        public function reject(Request $request, AuthorApplication $application): JsonResponse
     {
         $this->authorize('review', $application);
         if ($application->status !== 'pending') {
@@ -324,7 +338,13 @@ class AuthorApplicationController extends Controller
             'reviewed_at' => now(),
         ]);
 
-        $application->user->notify(new SystemAlert('تم رفض طلب انضمامك ككاتب.', 'error', '/'));
+        // --- نظام الإشعارات الجديد (رفض) ---
+        $application->user->notify(new \App\Notifications\SystemNotification(
+            'تم رفض طلب انضمامك ككاتب.', 
+            'danger', 
+            '/'
+        ));
+        // ----------------------------------------
 
         ActivityLog::create([
             'user_id' => $request->user()->id,

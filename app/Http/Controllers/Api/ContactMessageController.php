@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use App\Notifications\SystemAlert;
 use Illuminate\Support\Facades\Notification;
+use App\Notifications\SystemNotification;
 use App\Models\User;
 
 class ContactMessageController extends Controller
@@ -64,7 +65,7 @@ class ContactMessageController extends Controller
         ], 200);
     }
 
-    public function store(StoreContactMessageRequest $request)
+            public function store(StoreContactMessageRequest $request)
     {
         $validatedData = $request->validated();
         
@@ -73,9 +74,19 @@ class ContactMessageController extends Controller
 
         $message = ContactMessage::create($validatedData);
 
-        // Notify admins
-        $admins = User::all();
-        Notification::send($admins, new SystemAlert('رسالة جديدة من: ' . $message->full_name, 'info', '/admin/messages'));
+        // --- نظام الإشعارات الجديد (رسالة تواصل) ---
+        // جلب أرقام (IDs) الصلاحيات الخاصة بمدراء النظام
+        $adminRoleIds = \App\Models\Role::whereIn('name', ['admin', 'super-admin'])->pluck('id');
+        
+        // جلب المستخدمين الذين يملكون هذه الصلاحيات حصراً
+        $admins = User::whereIn('role_id', $adminRoleIds)->get();
+
+        Notification::send($admins, new \App\Notifications\SystemNotification(
+            'رسالة واردة من (' . $message->full_name . ')', 
+            'info', 
+            '/admin/contact-messages' 
+        ));
+        // ----------------------------------------
 
         return response()->json([
             'status'  => true,
@@ -83,6 +94,8 @@ class ContactMessageController extends Controller
             'data'    => $message
         ], 201);
     }
+
+
 
     public function reply(ReplyContactMessageRequest $request, $id)
     {

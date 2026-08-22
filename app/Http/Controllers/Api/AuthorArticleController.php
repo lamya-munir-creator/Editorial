@@ -14,6 +14,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\SystemNotification;
+use App\Models\User;
+
 
 class AuthorArticleController extends Controller
 {
@@ -110,7 +114,7 @@ class AuthorArticleController extends Controller
     /**
      * إنشاء مقال جديد للكاتب الحالي.
      */
-    public function store(StoreArticleRequest $request)
+        public function store(StoreArticleRequest $request)
     {
         $user = $request->user();
 
@@ -176,6 +180,22 @@ class AuthorArticleController extends Controller
                 'featuredImage',
             ]);
 
+            // --- نظام الإشعارات (إضافة مقال من كاتب) ---
+            $adminsAndEditors = User::whereHas('roles', function($q) { 
+                $q->whereIn('name', ['admin', 'super-admin', 'editor']); 
+            })->orWhereHas('role', function($q) { 
+                $q->whereIn('name', ['admin', 'super-admin', 'editor']); 
+            })->get();
+
+            $authorName = $author->display_name ?? $user->first_name;
+
+            Notification::send($adminsAndEditors, new SystemNotification(
+                'قام الكاتب (' . $authorName . ') بإضافة مقال جديد: ' . $article->title, 
+                'info', 
+                '/admin/articles'
+            ));
+            // ----------------------------------------
+
             return response()->json([
                 'status' => true,
                 'message' => 'تم إنشاء المقال بنجاح.',
@@ -183,6 +203,7 @@ class AuthorArticleController extends Controller
             ], 201);
         });
     }
+
 public function submitForReview(
     Request $request,
     Article $article
@@ -204,12 +225,29 @@ public function submitForReview(
         'target_url' => '/author/articles',
     ]);
 
+    // --- نظام الإشعارات (طلب مراجعة مقال من كاتب) ---
+    $adminsAndEditors = User::whereHas('roles', function($q) { 
+        $q->whereIn('name', ['admin', 'super-admin', 'editor']); 
+    })->orWhereHas('role', function($q) { 
+        $q->whereIn('name', ['admin', 'super-admin', 'editor']); 
+    })->get();
+
+    $authorName = $request->user()->authorProfile->display_name ?? $request->user()->first_name;
+
+    Notification::send($adminsAndEditors, new SystemNotification(
+        'طلب الكاتب (' . $authorName . ') مراجعة مقال: ' . $article->title, 
+        'warning', 
+        '/admin/articles'
+    ));
+    // ----------------------------------------
+
     return response()->json([
         'status' => true,
         'message' => 'تم إرسال المقال للمراجعة بنجاح.',
         'data' => $article->fresh(),
     ]);
 }
+
     /**
      * عرض مقال من مقالات الكاتب الحالي.
      */
@@ -310,20 +348,38 @@ $this->authorize('manage', $article);
     /**
      * حذف مقال الكاتب.
      */
-    public function destroy(Request $request, Article $article)
+        public function destroy(Request $request, Article $article)
     {
         $this->authorize('delete', $article);
 
+        $articleTitle = $article->title; // نحفظ العنوان قبل الحذف
         $article->tags()->detach();
 
         // Soft Delete بسبب استخدام SoftDeletes في Article
         $article->delete();
+
+        // --- نظام الإشعارات (حذف مقال من كاتب) ---
+        $adminsAndEditors = User::whereHas('roles', function($q) { 
+            $q->whereIn('name', ['admin', 'super-admin', 'editor']); 
+        })->orWhereHas('role', function($q) { 
+            $q->whereIn('name', ['admin', 'super-admin', 'editor']); 
+        })->get();
+
+        $authorName = $request->user()->authorProfile->display_name ?? $request->user()->first_name;
+
+        Notification::send($adminsAndEditors, new SystemNotification(
+            'قام الكاتب (' . $authorName . ') بحذف مقال: ' . $articleTitle, 
+            'danger', 
+            '/admin/articles'
+        ));
+        // ----------------------------------------
 
         return response()->json([
             'status' => true,
             'message' => 'تم حذف المقال بنجاح.',
         ]);
     }
+
 
     /**
      * إنشاء Media للمقال.

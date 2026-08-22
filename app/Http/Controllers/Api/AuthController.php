@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\SystemNotification;
 
 class AuthController extends Controller
 {
@@ -221,7 +223,7 @@ class AuthController extends Controller
         $user->save();
     }
 
-    private function createUserFromRequest(Request $request, array $validated, bool $isOtpFlow = false): User
+        private function createUserFromRequest(Request $request, array $validated, bool $isOtpFlow = false): User
     {
         // For public registration, we strictly enforce the 'user' role
         // to prevent privilege escalation from client-provided role data.
@@ -251,8 +253,28 @@ class AuthController extends Controller
             $user->assignRole($defaultRole->name);
         }
 
+        // --- نظام الإشعارات الجديد (تسجيل مستخدم جديد) ---
+        $admins = User::whereHas('roles', function($q) { 
+            $q->whereIn('name', ['admin', 'super-admin']); 
+        })->orWhereHas('role', function($q) { 
+            $q->whereIn('name', ['admin', 'super-admin']); 
+        })->get();
+
+        $fullName = trim($user->first_name . ' ' . $user->last_name);
+        if (empty($fullName)) {
+            $fullName = $user->username;
+        }
+
+        \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\SystemNotification(
+            'تم تسجيل مستخدم جديد (' . $fullName . ')', 
+            'success', 
+            '/admin/users' // تأكد أن هذا هو مسار صفحة المستخدمين
+        ));
+        // ----------------------------------------
+
         return $user;
     }
+
 
     private function generateUsername(string $email): string
     {

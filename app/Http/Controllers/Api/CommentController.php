@@ -10,6 +10,9 @@ use App\Http\Requests\StoreCommentRequest;
 use App\Http\Requests\UpdateCommentRequest;
 use App\Http\Resources\CommentResource;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\SystemNotification;
+
 
 class CommentController extends Controller
 {
@@ -87,8 +90,23 @@ class CommentController extends Controller
             'status'      => $validatedData['status'] ?? 'pending',
         ]);
 
-        $admins = \App\Models\User::whereHas('role', function($q) { $q->whereIn('name', ['admin', 'super-admin']); })->get();
-        \Illuminate\Support\Facades\Notification::send($admins, new \App\Notifications\SystemAlert('تعليق جديد بانتظار المراجعة', 'info', '/admin/comments'));
+        // --- نظام الإشعارات الجديد (إضافة تعليق) ---
+        $adminsAndEditors = \App\Models\User::whereHas('role', function($q) { 
+            $q->whereIn('name', ['admin', 'super-admin', 'editor']); 
+        })->get();
+        
+        $commenterName = $user ? $user->name : ($validatedData['guest_name'] ?? 'زائر');
+        $articleTitle = $comment->article ? $comment->article->title : 'مقال غير معروف';
+
+        \Illuminate\Support\Facades\Notification::send(
+            $adminsAndEditors, 
+            new SystemNotification(
+                "تعليق جديد على مقال ($articleTitle) من مستخدم ($commenterName)", 
+                'success', 
+                '/admin/comments'
+            )
+        );
+        // ----------------------------------------
 
         ActivityLog::create([
             'user_id' => $user?->id ?? 1,
@@ -105,7 +123,8 @@ class CommentController extends Controller
         ], 201);
     }
 
-    public function update(UpdateCommentRequest $request, $id)
+
+        public function update(UpdateCommentRequest $request, $id)
     {
         Gate::authorize('approve-comment');
         
@@ -114,13 +133,54 @@ class CommentController extends Controller
 
         $comment->update($validatedData);
 
+        // --- نظام الإشعارات الجديد (تحديث حالة التعليق) ---
         if (isset($validatedData['status'])) {
-            if ($validatedData['status'] === 'approved' && $comment->user) {
-                $comment->user->notify(new \App\Notifications\SystemAlert('تمت الموافقة على تعليقك!', 'success', '/'));
-            } elseif ($validatedData['status'] === 'rejected' && $comment->user) {
-                $comment->user->notify(new \App\Notifications\SystemAlert('تم رفض تعليقك.', 'error', '/'));
+            $status = $validatedData['status'];
+            $modifier = auth()->user();
+            
+            // إشعار لصاحب التعليق (إذا كان مسجلاً)
+            if ($comment->user) {
+                if ($status === 'approved') {
+                    $comment->user->notify(new SystemNotification('تمت الموافقة على تعليقك!', 'success', '/'));
+                } elseif ($status === 'rejected') {
+                    $comment->user->notify(new SystemNotification('تم رفض تعليقك.', 'danger', '/'));
+                }
+            }
+
+            // إشعار للإدارة والمحررين بالعملية
+            if ($status === 'approved' || $status === 'rejected') {
+                $actionText = $status === 'approved' ? 'وافق على' : 'رفض';
+                $type = $status === 'approved' ? 'success' : 'danger';
+                $commenterName = $comment->user ? $comment->user->name : ($comment->guest_name ?? 'زائر');
+                $articleTitle = $comment->article ? $comment->article->title : 'مقال غير معروف';
+                
+                // إذا كان الذي قام بالفعل هو المحرر -> نبلغ المدير
+                if ($modifier->hasRole('editor')) {
+                    $admins = \App\Models\User::whereHas('role', function($q) { 
+                        $q->whereIn('name', ['admin', 'super-admin']); 
+                    })->get();
+
+                    \Illuminate\Support\Facades\Notification::send($admins, new SystemNotification(
+                        "المحرر ({$modifier->name}) $actionText تعليق مستخدم ($commenterName)", 
+                        $type, 
+                        '/admin/comments'
+                    ));
+                } 
+                // إذا كان الذي قام بالفعل هو المدير -> نبلغ المحرر
+                elseif ($modifier->hasRole('admin') || $modifier->hasRole('super-admin')) {
+                    $editors = \App\Models\User::whereHas('role', function($q) { 
+                        $q->where('name', 'editor'); 
+                    })->get();
+
+                    \Illuminate\Support\Facades\Notification::send($editors, new SystemNotification(
+                        "المدير تم $actionText تعليق مقال ($articleTitle) من المستخدم ($commenterName)", 
+                        $type, 
+                        '/admin/comments'
+                    ));
+                }
             }
         }
+        // ----------------------------------------
 
         ActivityLog::create([
             'user_id' => auth()->id() ?? 1,
@@ -136,6 +196,7 @@ class CommentController extends Controller
             'data'    => $comment
         ], 200);
     }
+
 
     public function updateStatus(UpdateCommentRequest $request, $id)
     {

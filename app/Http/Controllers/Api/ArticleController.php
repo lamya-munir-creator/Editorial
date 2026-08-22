@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StoreArticleRequest;
 use App\Http\Requests\UpdateArticleRequest;
 use Illuminate\Support\Str;
+use App\Notifications\SystemNotification;
 use Illuminate\Support\Facades\Notification;
 
 class ArticleController extends Controller
@@ -125,7 +126,7 @@ class ArticleController extends Controller
         ]);
     }
 
-    public function store(StoreArticleRequest $request)
+        public function store(StoreArticleRequest $request)
     {
         $validated = $request->validated();
         $user = auth()->user();
@@ -193,18 +194,25 @@ class ArticleController extends Controller
             $article->tags()->attach($request->tags);
         }
 
-        $admins = \App\Models\User::whereHas('role', function ($q) {
-            $q->whereIn('name', ['admin', 'super-admin']);
-        })->get();
+        // --- نظام الإشعارات الجديد (الإضافة) ---
+        $roleName = $user->hasRole('editor') ? 'المحرر' : 'الكاتب';
+        
+        // إذا كان المضيف ليس مديراً (يعني إما محرر أو كاتب)، نرسل إشعار للإدارة والمحررين
+        if (!$user->hasRole('admin') && !$user->hasRole('super-admin')) {
+            $adminsAndEditors = \App\Models\User::whereHas('role', function ($q) {
+                $q->whereIn('name', ['admin', 'super-admin', 'editor']);
+            })->where('id', '!=', $user->id)->get();
 
-        Notification::send(
-            $admins,
-            new \App\Notifications\SystemAlert(
-                'مقال جديد: ' . $article->title,
-                'info',
-                '/admin/articles'
-            )
-        );
+            Notification::send(
+                $adminsAndEditors,
+                new SystemNotification(
+                    "$roleName ({$user->name}) تم اضافة مقال: {$article->title}",
+                    'success',
+                    '/admin/articles'
+                )
+            );
+        }
+        // ----------------------------------------
 
         ActivityLog::create([
             'user_id' => $user->id,
@@ -235,6 +243,7 @@ class ArticleController extends Controller
         ], 201);
     }
 
+
     public function show(Article $article)
     {
         $author = $article->author;
@@ -263,25 +272,27 @@ class ArticleController extends Controller
         ]);
     }
 
-    public function update(UpdateArticleRequest $request, Article $article)
+        public function update(UpdateArticleRequest $request, Article $article)
     {
         $this->authorize('update', $article);
 
         $validated = $request->validated();
+        $user = auth()->user();
 
         if (isset($validated['title'])) {
             $validated['slug'] = Str::slug($validated['title']);
         }
 
-        $validated['updated_by'] = auth()->id();
+        $validated['updated_by'] = $user->id;
 
         if ($request->hasFile('image')) {
+            // ... (نفس كود رفع الصورة السابق) ...
             $file = $request->file('image');
             $path = $file->store('articles', 'public');
 
             $media = Media::create([
                 'uuid' => (string) Str::uuid(),
-                'uploaded_by' => auth()->id(),
+                'uploaded_by' => $user->id,
                 'file_name' => basename($path),
                 'original_name' => $file->getClientOriginalName(),
                 'disk' => 'public',
@@ -291,7 +302,7 @@ class ArticleController extends Controller
                 'extension' => $file->getClientOriginalExtension(),
                 'file_size' => $file->getSize(),
                 'type' => 'image',
-                'created_by' => auth()->id(),
+                'created_by' => $user->id,
             ]);
 
             $validated['featured_image_id'] = $media->id;
@@ -303,19 +314,44 @@ class ArticleController extends Controller
             $article->tags()->sync($request->tags);
         }
 
-        if (
-            $article->author &&
-            $article->author->user &&
-            auth()->id() !== $article->author->user_id
-        ) {
-            $article->author->user->notify(
-                new \App\Notifications\SystemAlert(
-                    'تم تعديل مقالك: ' . $article->title,
-                    'info',
-                    '/author/dashboard'
+        // --- نظام الإشعارات الجديد (التعديل) ---
+        $isModifierAdmin = $user->hasRole('admin') || $user->hasRole('super-admin');
+        $isModifierEditor = $user->hasRole('editor');
+        $roleName = $isModifierEditor ? 'المحرر' : ($isModifierAdmin ? 'المدير' : 'الكاتب');
+        $articleOwner = $article->author ? $article->author->user : null;
+
+        // 1. إذا كان المعدل هو الإدارة أو المحرر، نبلغ الكاتب الأصلي
+        if ($articleOwner && $user->id !== $articleOwner->id) {
+            $articleOwner->notify(
+                new SystemNotification(
+                    "$roleName ({$user->name}) تم التعديل على مقالك: {$article->title}",
+                    'warning',
+                    '/author/dashboard/articles'
                 )
             );
         }
+
+        // 2. إذا كان المعدل محرر أو كاتب، نبلغ المدير (أو المحررين الآخرين)
+        if (!$isModifierAdmin) {
+            $adminsAndEditors = \App\Models\User::whereHas('role', function ($q) {
+                $q->whereIn('name', ['admin', 'super-admin', 'editor']);
+            })->where('id', '!=', $user->id)->get();
+
+            // للكاتب الأصل: إذا كان المعدل محرر، نذكره
+            $authorName = $articleOwner ? $articleOwner->name : 'غير معروف';
+
+            Notification::send(
+                $adminsAndEditors,
+                new SystemNotification(
+                    $isModifierEditor 
+                        ? "المحرر ({$user->name}) قام بتعديل مقال: {$article->title} للكاتب ($authorName)"
+                        : "الكاتب ({$user->name}) تم تعديل مقال: {$article->title}",
+                    'warning',
+                    '/admin/articles'
+                )
+            );
+        }
+        // ----------------------------------------
 
         ActivityLog::create([
             'user_id' => auth()->id(),
@@ -340,14 +376,90 @@ class ArticleController extends Controller
         ], 200);
     }
 
-    public function destroy(Article $article)
+        public function publish(Article $article)
+    {
+        // يمكنك تفعيل التحقق من الصلاحيات إذا أردت
+        // $this->authorize('update', $article);
+
+        $article->update([
+            'status' => 'published',
+            'published_at' => $article->published_at ?? now(), // تعيين وقت النشر إذا لم يكن منشوراً من قبل
+        ]);
+
+        // إشعار للكاتب بأن مقاله تم نشره
+        $articleOwner = $article->author ? $article->author->user : null;
+        if ($articleOwner && auth()->id() !== $articleOwner->id) {
+            $articleOwner->notify(
+                new SystemNotification(
+                    "تم نشر مقالك: {$article->title} بنجاح!",
+                    'success',
+                    '/author/dashboard/articles'
+                )
+            );
+        }
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action_type' => 'publish_article',
+            'action_label' => $this->getActionPrefix() . 'قام بنشر مقال',
+            'target_name' => $article->title,
+            'target_url' => '/articles',
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'تم نشر المقال بنجاح.',
+            'data' => new ArticleResource($article->fresh()->load(['category', 'tags', 'author', 'creator', 'featuredImage'])),
+        ], 200);
+    }
+
+        public function destroy(Article $article)
     {
         $this->authorize('delete', $article);
 
         $title = $article->title;
+        $user = auth()->user();
+        $articleOwner = $article->author ? $article->author->user : null;
 
         $article->tags()->detach();
         $article->delete();
+
+        // --- نظام الإشعارات الجديد (الحذف) ---
+        $isModifierAdmin = $user->hasRole('admin') || $user->hasRole('super-admin');
+        $isModifierEditor = $user->hasRole('editor');
+        $roleName = $isModifierEditor ? 'المحرر' : 'الكاتب';
+        
+        // 1. إذا حذفه المحرر أو المدير، نبلغ الكاتب
+        if ($articleOwner && $user->id !== $articleOwner->id) {
+            $articleOwner->notify(
+                new SystemNotification(
+                    "تم حذف مقالك: $title", // كما طلبت، بدون ذكر من حذفه
+                    'danger',
+                    '/author/dashboard/articles'
+                )
+            );
+        }
+
+        // 2. إذا حذفه الكاتب أو المحرر، نبلغ المدير والمحررين
+        if (!$isModifierAdmin) {
+            $adminsAndEditors = \App\Models\User::whereHas('role', function ($q) {
+                $q->whereIn('name', ['admin', 'super-admin', 'editor']);
+            })->where('id', '!=', $user->id)->get();
+
+            $authorName = $articleOwner ? $articleOwner->name : 'غير معروف';
+
+            Notification::send(
+                $adminsAndEditors,
+                new SystemNotification(
+                    $isModifierEditor 
+                        ? "المحرر ({$user->name}) قام بحذف مقال ($title) للكاتب ($authorName)"
+                        : "الكاتب ({$user->name}) حذف مقال: $title",
+                    'danger',
+                    '/admin/articles'
+                )
+            );
+        }
+        // ----------------------------------------
 
         ActivityLog::create([
             'user_id' => auth()->id(),
@@ -362,6 +474,7 @@ class ArticleController extends Controller
             'message' => __('Article deleted successfully'),
         ], 200);
     }
+
 
     public function related(Article $article)
     {

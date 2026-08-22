@@ -23,17 +23,19 @@ class CategoryController extends Controller
         return $isFemale ? 'Ù‚Ø§Ù…Øª Ø¨Ù€' : 'Ù‚Ø§Ù… Ø¨Ù€';
     }
 
-    public function index(Request $request)
+        public function index(Request $request)
     {
-        $query = Category::with('image');
+        $query = Category::with('image')->withCount('articles');
 
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
         }
 
         $categories = $query
-            ->latest()
+            ->orderBy('sort_order', 'asc') 
+            ->latest()                     
             ->paginate($request->input('per_page', 10));
+
 
         return response()->json([
             'status' => true,
@@ -46,6 +48,7 @@ class CategoryController extends Controller
             ],
         ], 200);
     }
+
 
     public function store(StoreCategoryRequest $request)
     {
