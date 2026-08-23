@@ -203,8 +203,8 @@ class EditorArticleController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
-        if ($article->author && $article->author->id !== $request->user()->id) {
-            $article->author->notify(new \App\Notifications\SystemAlert(
+        if ($article->author && $article->author->user_id && $article->author->user_id !== $request->user()->id) {
+            $article->author->user->notify(new \App\Notifications\SystemAlert(
                 "تم قبول ونشر مقالك: {$article->title}",
                 "success"
             ));
@@ -238,8 +238,8 @@ class EditorArticleController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
-        if ($article->author && $article->author->id !== $request->user()->id) {
-            $article->author->notify(new \App\Notifications\SystemAlert(
+        if ($article->author && $article->author->user_id && $article->author->user_id !== $request->user()->id) {
+            $article->author->user->notify(new \App\Notifications\SystemAlert(
                 "تم قبول ونشر مقالك: {$article->title}",
                 "success"
             ));
@@ -271,8 +271,8 @@ class EditorArticleController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
-        if ($article->author && $article->author->id !== $request->user()->id) {
-            $article->author->notify(new \App\Notifications\SystemAlert(
+        if ($article->author && $article->author->user_id && $article->author->user_id !== $request->user()->id) {
+            $article->author->user->notify(new \App\Notifications\SystemAlert(
                 "تم قبول ونشر مقالك: {$article->title}",
                 "success"
             ));

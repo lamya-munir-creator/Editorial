@@ -40,51 +40,34 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 3. Latest Activities
-        $activities = collect();
+                // 3. Latest Activities
+        $latestActivities = \App\Models\ActivityLog::with('user')->orderBy('id', 'desc')->take(4)->get()->map(function($log) {
 
-        // Get latest 2 articles
-        $latestArticles = Article::with('author.user')->latest()->take(2)->get();
-        foreach ($latestArticles as $article) {
-            $authorName = $article->author ? ($article->author->user?->first_name . ' ' . $article->author->user?->last_name) : 'مجهول';
-            $activities->push([
-                'title' => $article->status === 'published' ? 'تم نشر مقال جديد' : 'تم إضافة مسودة مقال',
-                'info' => "المقال: \"{$article->title}\" • " . $article->created_at->diffForHumans(),
-                'dotBg' => $article->status === 'published' ? 'bg-[#8c6239]' : 'bg-amber-500',
-                'created_at' => $article->created_at
-            ]);
-        }
+            
+            // تحديد لون النقطة بناءً على نوع النشاط
+            $dotBg = 'bg-stone-500'; // الافتراضي رمادي
+            
+            if (in_array($log->action_type, ['add_article', 'publish_article'])) {
+                $dotBg = 'bg-emerald-500'; // أخضر لعمليات الإضافة والنشر
+            } elseif (in_array($log->action_type, ['delete_article', 'delete_user'])) {
+                $dotBg = 'bg-red-500'; // أحمر لعمليات الحذف
+            } elseif (in_array($log->action_type, ['edit_article', 'edit_user'])) {
+                $dotBg = 'bg-blue-500'; // أزرق للتعديلات
+            } elseif ($log->action_type == 'system_settings') {
+                $dotBg = 'bg-amber-500'; // أصفر للإعدادات
+            } elseif (in_array($log->action_type, ['login', 'logout'])) {
+                $dotBg = 'bg-[#8c6239]'; // بني لتسجيل الدخول والخروج
+            }
 
-        // Get latest 2 contact messages
-        $latestMessages = ContactMessage::latest()->take(2)->get();
-        foreach ($latestMessages as $message) {
-            $activities->push([
-                'title' => 'رسالة تواصل جديدة',
-                'info' => "من {$message->name} • " . $message->created_at->diffForHumans(),
-                // تغيير اللون هنا
-                'dotBg' => 'bg-emerald-500',
-                'created_at' => $message->created_at
-            ]);
-        }
+            $userName = $log->user ? $log->user->first_name . ' ' . $log->user->last_name : 'مستخدم غير معروف';
 
-        // Get latest 2 comments
-        $latestComments = Comment::with('user')->latest()->take(2)->get();
-        foreach ($latestComments as $comment) {
-            $userName = $comment->user ? $comment->user->first_name : 'زائر';
-            $activities->push([
-                'title' => 'تعليق جديد',
-                'info' => "بواسطة {$userName} • " . $comment->created_at->diffForHumans(),
-                'dotBg' => 'bg-stone-500',
-                'created_at' => $comment->created_at
-            ]);
-        }
-
-
-        // Sort activities by date descending and take top 4
-        $latestActivities = $activities->sortByDesc('created_at')->take(4)->values()->map(function ($item) {
-            unset($item['created_at']);
-            return $item;
+            return [
+                'title' => $log->action_label ?? 'نشاط جديد',
+                'info' => $userName . ' • ' . $log->created_at->diffForHumans(),
+                'dotBg' => $dotBg
+            ];
         });
+
 
             return response()->json([
             'stats' => [

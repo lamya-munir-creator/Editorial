@@ -73,4 +73,9 @@ class Author extends Model
     {
         return 'slug';
     }
+    
+    public function getNameAttribute()
+    {
+        return trim($this->first_name . ' ' . $this->last_name);
+    }
 }

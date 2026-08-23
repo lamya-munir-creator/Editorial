@@ -119,4 +119,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(ContactMessage::class, 'handled_by');
     }
+
+    public function getNameAttribute()
+    {
+        return trim($this->first_name . ' ' . $this->last_name);
+    }
 }
+
