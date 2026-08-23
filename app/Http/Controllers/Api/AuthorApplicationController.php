@@ -190,7 +190,7 @@ class AuthorApplicationController extends Controller
         ], 200);
     }
 
-        public function approve(Request $request, AuthorApplication $application): JsonResponse
+            public function approve(Request $request, AuthorApplication $application): JsonResponse
     {
         $this->authorize('review', $application);
         if ($application->status !== 'pending') {
@@ -208,9 +208,7 @@ class AuthorApplicationController extends Controller
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                if ($user->authorProfile) {
-                    throw new \RuntimeException('هذا المستخدم لديه ملف كاتب بالفعل.');
-                }
+                // تم حذف الشرط المزعج هنا الذي كان يمنع الموافقة
 
                 // البحث الآمن عن دور الكاتب
                 $role = Role::whereRaw('LOWER(name) = ?', ['author'])
@@ -245,20 +243,20 @@ class AuthorApplicationController extends Controller
                     $counter++;
                 }
 
-                // إنشاء بروفايل الكاتب
-               $author = Author::updateOrCreate(
-    ['user_id' => $user->id], // المفتاح الفريد للبحث (إذا كان موجوداً لن يكرره)
-    [
-        'uuid' => (string) Str::uuid(),
-        'display_name' => $application->display_name,
-        'slug' => $slug,
-        'biography' => $application->biography,
-        'job_title' => $application->job_title,
-        'website' => $application->website,
-        'status' => 'active',
-        'created_by' => $admin->id,
-    ]
-);
+                // إنشاء بروفايل الكاتب (سيقوم بالتحديث إن وجد ملف سابق)
+                $author = Author::updateOrCreate(
+                    ['user_id' => $user->id], // المفتاح الفريد للبحث
+                    [
+                        'uuid' => (string) Str::uuid(),
+                        'display_name' => $application->display_name,
+                        'slug' => $slug,
+                        'biography' => $application->biography,
+                        'job_title' => $application->job_title,
+                        'website' => $application->website,
+                        'status' => 'active',
+                        'created_by' => $admin->id,
+                    ]
+                );
 
                 // تحديث جدول users وإزالة الأدوار القديمة تماماً وإعطاء دور الكاتب
                 $user->update([
@@ -316,6 +314,7 @@ class AuthorApplicationController extends Controller
             ], 422);
         }
     }
+
 
         public function reject(Request $request, AuthorApplication $application): JsonResponse
     {

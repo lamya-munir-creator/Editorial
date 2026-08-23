@@ -8,9 +8,10 @@ use Illuminate\Http\Request;
 
 class ActivityLogController extends Controller
 {
-    public function index(Request $request)
+        public function index(Request $request)
     {
-        $search = $request->input('search');
+        // 1. دعم search و q معاً
+        $search = $request->input('search', $request->input('q'));
         $action = $request->input('action');
         $date = $request->input('date');
 
@@ -20,7 +21,10 @@ class ActivityLogController extends Controller
                     $q->where('target_name', 'like', "%{$search}%")
                       ->orWhere('action_label', 'like', "%{$search}%")
                       ->orWhereHas('user', function ($qu) use ($search) {
-                          $qu->where('name', 'like', "%{$search}%");
+                          // 2. البحث في الأعمدة الصحيحة للمستخدم بدلاً من name
+                          $qu->where('first_name', 'like', "%{$search}%")
+                             ->orWhere('last_name', 'like', "%{$search}%")
+                             ->orWhere('username', 'like', "%{$search}%");
                       });
                 });
             })
@@ -49,11 +53,17 @@ class ActivityLogController extends Controller
 
         // تنسيق البيانات لتتوافق تماماً مع واجهة الفرونت إند
         $logs->getCollection()->transform(function ($log) {
+            // تجميع الاسم الأول والأخير أو استخدام اليوزرنيم
+            $fullName = trim(($log->user?->first_name ?? '') . ' ' . ($log->user?->last_name ?? ''));
+            if (empty($fullName)) {
+                $fullName = $log->user?->username ?? $log->user?->name ?? 'مستخدم نظام';
+            }
+
             return [
                 'id' => $log->id,
                 'user' => [
                     'id' => $log->user?->id,
-                    'name' => $log->user?->name ?? 'مستخدم نظام',
+                    'name' => $fullName,
                     'avatar' => $log->user?->avatar?->url ?? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
                     'role' => $log->user?->role ?? 'مدير',
                 ],
@@ -67,4 +77,5 @@ class ActivityLogController extends Controller
 
         return response()->json($logs);
     }
+
 }

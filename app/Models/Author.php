@@ -26,6 +26,7 @@ use Illuminate\Support\Str;
     'youtube',
     'gender',
     'status',
+    'avatar_id',
     'created_by',
     'updated_by',
 ])]

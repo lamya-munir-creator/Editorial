@@ -24,21 +24,24 @@ class AuthorController extends Controller
         return $isFemale ? 'قامت بـ' : 'قام بـ';
     }
 
-    /**
+       /**
      * جلب قائمة الكُتّاب مع دعم البحث والتقسيم المالي (Pagination)
      */
     public function index(Request $request)
     {
-        $search = $request->input('search');
+        // ندعم كلاً من search و q لضمان التوافق التام مع الواجهة الأمامية
+        $search = $request->input('search', $request->input('q'));
 
         $authors = Author::with(['avatar', 'user.role'])
             ->withCount('articles')
             ->when($search, function ($query, $search) {
-                return $query->where('display_name', 'like', "%{$search}%")
+                return $query->where(function($qBuilder) use ($search) {
+                    $qBuilder->where('display_name', 'like', "%{$search}%")
                              ->orWhere('job_title', 'like', "%{$search}%");
+                });
             })
             ->latest()
-            ->paginate(10);
+            ->paginate($request->input('per_page', 10)); // السماح للواجهة بتحديد العدد
 
         return response()->json([
             'status'  => true,
@@ -46,6 +49,7 @@ class AuthorController extends Controller
             'data'    => $authors
         ], 200);
     }
+
 
     /**
      * عرض تفاصيل كاتب معين مع مقالاته وصورته عبر المعرف

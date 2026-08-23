@@ -23,19 +23,29 @@ class CategoryController extends Controller
         return $isFemale ? 'Ù‚Ø§Ù…Øª Ø¨Ù€' : 'Ù‚Ø§Ù… Ø¨Ù€';
     }
 
-        public function index(Request $request)
+            public function index(Request $request)
     {
         $query = Category::with('image')->withCount('articles');
 
+        // تصفية حسب الحالة إن وجدت
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
         }
+
+        // --- التعديل الجديد: إضافة ميزة البحث ---
+        if ($request->filled('q')) {
+            $search = $request->input('q');
+            $query->where(function($qBuilder) use ($search) {
+                $qBuilder->where('name', 'like', "%{$search}%")
+                         ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+        // ----------------------------------------
 
         $categories = $query
             ->orderBy('sort_order', 'asc') 
             ->latest()                     
             ->paginate($request->input('per_page', 10));
-
 
         return response()->json([
             'status' => true,
@@ -48,6 +58,7 @@ class CategoryController extends Controller
             ],
         ], 200);
     }
+
 
 
     public function store(StoreCategoryRequest $request)
