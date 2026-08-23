@@ -16,7 +16,7 @@ class EditorArticleController extends Controller
     /**
      * جلب جميع المقالات للمحرر
      */
-    public function index(Request $request)
+       public function index(Request $request)
     {
         // المحرر يستطيع رؤية جميع المقالات
         $query = Article::with(['category', 'tags', 'author', 'featuredImage']);
@@ -28,6 +28,20 @@ class EditorArticleController extends Controller
         if ($request->filled('q')) {
             $search = $request->input('q');
             $query->where('title', 'like', "%{$search}%");
+        }
+
+        // فلترة التصنيف
+        if ($request->filled('category_slug')) {
+            $query->whereHas('category', function ($q) use ($request) {
+                $q->where('slug', $request->input('category_slug'));
+            });
+        }
+
+        // فلترة الكاتب
+        if ($request->filled('author_slug')) {
+            $query->whereHas('author', function ($q) use ($request) {
+                $q->where('slug', $request->input('author_slug'));
+            });
         }
 
         $query->orderByDesc('created_at');
@@ -47,6 +61,7 @@ class EditorArticleController extends Controller
             ],
         ]);
     }
+
 
     /**
      * عرض مقال
